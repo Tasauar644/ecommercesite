@@ -1,0 +1,60 @@
+Ready for review
+Select text to add comments on the plan
+E-commerce Site: Angular + Laravel
+Context
+The repo currently contains only a freshly scaffolded Angular 21 app (empty routes, default component, no backend). The goal is a full-stack e-commerce site: customers browse products and place orders; sellers manage their own product listings (photo, description, price, quantity); admins oversee everything. Confirmed choices: Laravel backend lives in a /backend subfolder of this repo, styling uses Tailwind CSS, database is MySQL (via the local XAMPP/MariaDB install — PHP 8.2 and Composer 2.8 are already available on this machine).
+
+Auth approach: Laravel Sanctum issuing Bearer tokens (not cookie-based SPA auth). This avoids same-site/CORS-cookie complications since Angular (:4200) and Laravel (:8000) run as separate dev servers, and keeps the client simpler (store token, attach via interceptor). Trade-off noted: slightly more XSS exposure than httpOnly cookies, acceptable for this project's scope.
+
+Data model (MySQL, via Laravel migrations)
+users: id, name, email, password, role enum(admin,seller,customer), timestamps
+products: id, seller_id (FK→users), name, description, price (decimal), quantity (int), image_path (nullable string), timestamps
+orders: id, user_id (FK→users, the buyer), status enum(pending,processing,shipped,delivered,cancelled), shipping_name, shipping_address, shipping_phone, total (decimal), timestamps
+order_items: id, order_id (FK), product_id (FK), seller_id (FK, denormalized for fast seller filtering), quantity, unit_price (snapshot at purchase time), timestamps
+Admin account is created via a DatabaseSeeder, not public registration. Public /register only allows choosing customer or seller.
+
+Backend plan (/backend, Laravel 11)
+composer create-project laravel/laravel backend, configure .env for MySQL (db name e.g. ecommerce), install Sanctum.
+Migrations + Eloquent models for the 4 tables above, with relationships (User hasMany Products/Orders, Product belongsTo User, Order hasMany OrderItems, etc.).
+config/cors.php: allow origin http://localhost:4200, allow Authorization header.
+Auth (AuthController): POST /api/register, POST /api/login (issues Sanctum token), POST /api/logout, GET /api/user.
+Role middleware (app/Http/Middleware/CheckRole.php) registered as alias, used as role:seller / role:admin.
+ProductController:
+Public: GET /api/products (paginated, optional ?search=), GET /api/products/{id}
+Seller-only (auth:sanctum, role:seller): GET /api/seller/products, POST /api/seller/products (multipart incl. image), POST /api/seller/products/{id} (update, method-spoofed PUT, image optional), DELETE /api/seller/products/{id} — ownership checked (product.seller_id === auth user).
+Images stored via Storage::disk('public'), php artisan storage:link; model accessor image_url builds full URL from image_path.
+OrderController:
+Customer: POST /api/orders (body: shipping info + items[{product_id, quantity}] — server recalculates totals from current product prices, validates stock, decrements products.quantity, all inside a DB transaction), GET /api/orders (own orders only).
+Seller (role:seller): GET /api/seller/orders (orders containing ≥1 of their products, via order_items.seller_id), PATCH /api/seller/orders/{id}/status.
+Admin (role:admin): GET /api/admin/orders (all orders), GET /api/admin/users, PATCH /api/admin/orders/{id}/status.
+routes/api.php wires all the above under appropriate middleware groups.
+DatabaseSeeder: one admin user + a couple of demo seller/product rows so the app has something to show immediately.
+Frontend plan (Angular 21, standalone components, signals)
+Add Tailwind CSS (v4: @tailwindcss/postcss + postcss, @import "tailwindcss"; in src/styles.css) — Angular's esbuild builder picks up PostCSS automatically.
+src/environments/environment.ts with apiUrl: 'http://localhost:8000/api'.
+core/
+services/auth.service.ts — signals for current user/token, login/register/logout, persists token in localStorage.
+services/product.service.ts, services/order.service.ts — thin HTTP wrappers.
+services/cart.service.ts — client-side cart as a signal (localStorage-backed), used for checkout.
+interceptors/auth.interceptor.ts — functional interceptor attaching Authorization: Bearer <token>.
+guards/auth.guard.ts, guards/role.guard.ts — functional guards using AuthService.
+features/
+auth/ — login, register (role picker: customer/seller)
+products/ — product-list (grid + search), product-detail, shared product-card component
+cart/ — cart-page
+checkout/ — checkout-page (shipping form → POST /api/orders)
+orders/ — my-orders (customer order history + status)
+seller/ — seller-dashboard (own product table), product-form (create/edit incl. image upload), seller-orders
+admin/ — admin-dashboard (all orders, all users)
+shared/ — navbar (logo, search, cart icon, auth-aware links), footer
+app.routes.ts: lazy-loaded routes per feature; /seller/** guarded by role.guard (seller), /admin/** guarded by role.guard (admin), cart/checkout/orders guarded by auth.guard.
+app.config.ts: add provideHttpClient(withInterceptors([authInterceptor])).
+Design direction
+Tailwind, light/neutral palette (white background, one accent color e.g. indigo/emerald for CTAs), rounded-corner product cards with shadow-on-hover, responsive CSS grid for listings, clean top navbar, simple sidebar-style tables for seller/admin dashboards. Kept deliberately simple (no heavy component library) per the "simple but attractive" ask.
+
+Dev workflow
+Two servers during development: php artisan serve (backend, :8000) and ng serve (frontend, :4200). README updated with setup steps for both (composer install, .env + php artisan migrate --seed, npm install).
+
+Verification
+Backend: php artisan migrate --seed, php artisan serve, sanity-check key endpoints (register/login/list products) with curl.
+Frontend: ng serve, manually walk the golden path in a browser — register as seller → add a product with image/price/quantity → register as customer → browse/search products → add to cart → checkout → confirm order appears in both "My Orders" (customer) and seller/admin order views.
