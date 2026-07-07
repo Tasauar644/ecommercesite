@@ -69,6 +69,13 @@ export interface Product {
 
 export type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 
+export interface Banner {
+  id: number;
+  image_url: string;
+  caption: string | null;
+  sort_order: number;
+}
+
 export interface District {
   id: number;
   name: string;

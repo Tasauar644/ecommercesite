@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Controllers\Admin\BannerController as AdminBannerController;
 use App\Http\Controllers\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Admin\DistrictController as AdminDistrictController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BannerController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\OrderController;
@@ -15,6 +17,7 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/staff-login', [AuthController::class, 'staffLogin']);
 
+Route::get('/banners', [BannerController::class, 'index']);
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{product}', [ProductController::class, 'show']);
 Route::get('/categories', [CategoryController::class, 'index']);
@@ -57,6 +60,11 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
             Route::post('/products', [AdminProductController::class, 'store']);
             Route::post('/products/{product}', [AdminProductController::class, 'update']);
             Route::delete('/products/{product}', [AdminProductController::class, 'destroy']);
+
+            Route::get('/banners', [AdminBannerController::class, 'index']);
+            Route::post('/banners', [AdminBannerController::class, 'store']);
+            Route::post('/banners/{banner}', [AdminBannerController::class, 'update']);
+            Route::delete('/banners/{banner}', [AdminBannerController::class, 'destroy']);
         });
 
         Route::middleware('permission:manage_customers')->group(function () {

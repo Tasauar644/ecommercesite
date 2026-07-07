@@ -1,13 +1,15 @@
-@if (showChrome()) {
-  <app-navbar />
-} @else if (showStaffBar()) {
-  <app-staff-topbar />
-}
+<div class="h-screen flex flex-col overflow-hidden">
+  @if (showChrome()) {
+    <app-navbar />
+  } @else if (showStaffBar()) {
+    <app-staff-topbar />
+  }
 
-<main class="min-h-[calc(100vh-4rem)]">
-  <router-outlet />
-</main>
+  <main class="flex-1 overflow-y-auto">
+    <router-outlet />
+  </main>
 
-@if (showChrome()) {
-  <app-footer />
-}
+  @if (showChrome()) {
+    <app-footer />
+  }
+</div>

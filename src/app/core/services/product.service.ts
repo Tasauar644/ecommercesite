@@ -9,10 +9,11 @@ export class ProductService {
   private base = `${environment.apiUrl}/products`;
   private adminBase = `${environment.apiUrl}/admin/products`;
 
-  list(search?: string, categoryId?: number) {
+  list(search?: string, categoryId?: number, page?: number) {
     const params: Record<string, string> = {};
     if (search) params['search'] = search;
     if (categoryId) params['category_id'] = String(categoryId);
+    if (page) params['page'] = String(page);
     return this.http.get<Paginated<Product>>(this.base, { params });
   }
 

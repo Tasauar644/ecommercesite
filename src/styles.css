@@ -20,3 +20,8 @@ body {
   background-color: #f9fafb;
   font-family: var(--font-sans);
 }
+
+app-root {
+  display: block;
+  height: 100vh;
+}
