@@ -55,15 +55,29 @@ import { Product } from '../../../core/models';
         <a [routerLink]="['/products', product.id]" class="font-bold text-ink hover:text-brand-600 line-clamp-1">{{ product.name }}</a>
         <p class="text-[13.5px] text-sub line-clamp-2 flex-1">{{ product.description }}</p>
         <div class="flex items-center justify-between mt-2.5">
-          <span class="font-serif text-lg font-extrabold text-ink">{{ product.price | currency:'BDT':'symbol':'1.0-0' }}</span>
+          <span class="font-serif text-lg font-extrabold text-ink">
+            @if (hasVariants()) {
+              <span class="text-xs font-sans font-semibold text-sub align-middle">From </span>
+            }
+            {{ product.price | currency:'BDT':'symbol':'1.0-0' }}
+          </span>
           @if (!auth.isEmployee() && !auth.isAdmin()) {
-            <button
-              (click)="add.emit(product)"
-              [disabled]="product.quantity === 0"
-              class="text-sm font-bold bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-full px-4 py-2 transition"
-            >
-              {{ product.quantity === 0 ? 'Out of stock' : 'Add to cart' }}
-            </button>
+            @if (hasVariants()) {
+              <a
+                [routerLink]="['/products', product.id]"
+                class="text-sm font-bold bg-brand-600 hover:bg-brand-700 text-white rounded-full px-4 py-2 transition"
+              >
+                Choose options
+              </a>
+            } @else {
+              <button
+                (click)="add.emit(product)"
+                [disabled]="product.quantity === 0"
+                class="text-sm font-bold bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-full px-4 py-2 transition"
+              >
+                {{ product.quantity === 0 ? 'Out of stock' : 'Add to cart' }}
+              </button>
+            }
           }
         </div>
       </div>
@@ -78,8 +92,12 @@ export class ProductCard {
 
   currentIndex = signal(0);
 
+  hasVariants = computed(() => (this.product.variants?.length ?? 0) > 0);
+
   images = computed(() => {
     if (this.product.images?.length) return this.product.images.map((img) => img.url);
+    const firstVariantImages = this.product.variants?.[0]?.images;
+    if (firstVariantImages?.length) return firstVariantImages.map((img) => img.url);
     return this.product.image_url ? [this.product.image_url] : [];
   });
 

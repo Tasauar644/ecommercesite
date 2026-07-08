@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\BannerController as AdminBannerController;
 use App\Http\Controllers\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Admin\DistrictController as AdminDistrictController;
+use App\Http\Controllers\Admin\PaymentSettingController as AdminPaymentSettingController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\BannerController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\PaymentSettingController;
 use App\Http\Controllers\ProductController;
 use Illuminate\Support\Facades\Route;
 
@@ -22,6 +24,7 @@ Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{product}', [ProductController::class, 'show']);
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/districts', [AdminDistrictController::class, 'index']);
+Route::get('/payment-settings', [PaymentSettingController::class, 'index']);
 Route::post('/guest-orders', [OrderController::class, 'guestStore']);
 
 Route::middleware(['auth:sanctum', 'active'])->group(function () {
@@ -82,6 +85,9 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::middleware('role:admin,superadmin')->prefix('admin')->group(function () {
         Route::get('/users', [AdminUserController::class, 'index']);
         Route::patch('/users/{user}', [AdminUserController::class, 'update']);
+        // Also reachable via POST for multipart avatar uploads — PHP never populates
+        // $_FILES for true PATCH/PUT requests, only POST.
+        Route::post('/users/{user}', [AdminUserController::class, 'update']);
     });
 
     // Superadmin only: manage other admin/employee accounts and their permissions.
@@ -92,5 +98,10 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy']);
 
         Route::post('/users/{user}/reset-password', [AdminUserController::class, 'resetPassword']);
+
+        // Payment routing info (e.g. the bKash number customers pay into) is superadmin-only to
+        // change — anyone else able to edit it could quietly redirect customer payments elsewhere.
+        Route::get('/payment-settings', [AdminPaymentSettingController::class, 'index']);
+        Route::post('/payment-settings', [AdminPaymentSettingController::class, 'update']);
     });
 });

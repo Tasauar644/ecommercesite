@@ -116,7 +116,10 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
                         }
                       </div>
                       <div class="flex-1 min-w-0 flex flex-col gap-0.5">
-                        <p class="text-[14.5px] font-semibold text-ink truncate">{{ item.product?.name || item.product_name || 'Product removed' }}</p>
+                        <p class="text-[14.5px] font-semibold text-ink truncate">
+                          {{ item.product?.name || item.product_name || 'Product removed' }}
+                          @if (item.variant_color_name) { <span class="text-sub font-normal">({{ item.variant_color_name }})</span> }
+                        </p>
                         <p class="text-[12.5px] text-sub">Qty {{ item.quantity }} &times; {{ item.unit_price | currency:'BDT':'symbol':'1.0-0' }}</p>
                       </div>
                       <span class="font-serif text-[15px] font-bold text-ink shrink-0">{{ item.quantity * +item.unit_price | currency:'BDT':'symbol':'1.0-0' }}</span>
@@ -131,6 +134,13 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
                 <div class="flex justify-between mt-1.5">
                   <span class="text-[15px] font-extrabold text-ink">Total</span>
                   <span class="font-serif text-[17px] font-extrabold text-ink">{{ order.total | currency:'BDT':'symbol':'1.0-0' }}</span>
+                </div>
+                <div class="flex justify-between mt-1.5 text-[12.5px] text-sub">
+                  <span>Payment</span>
+                  <span>
+                    {{ order.payment_method === 'bkash' ? 'bKash' : 'Cash on Delivery' }}
+                    @if (order.payment_transaction_id) { &middot; TrxID {{ order.payment_transaction_id }} }
+                  </span>
                 </div>
               </div>
             }
@@ -193,7 +203,18 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
               <tbody class="divide-y divide-line">
                 @for (u of filteredUsers(); track u.id) {
                   <tr>
-                    <td class="px-4 py-3 font-medium text-ink">{{ u.name }}</td>
+                    <td class="px-4 py-3 font-medium text-ink">
+                      <div class="flex items-center gap-2.5">
+                        <span class="h-8 w-8 rounded-full overflow-hidden bg-brand-100 text-brand-700 flex items-center justify-center shrink-0 font-serif font-semibold text-xs">
+                          @if (u.avatar_url) {
+                            <img [src]="u.avatar_url" [alt]="u.name" class="h-full w-full object-cover" />
+                          } @else {
+                            {{ initials(u.name) }}
+                          }
+                        </span>
+                        {{ u.name }}
+                      </div>
+                    </td>
                     <td class="px-4 py-3">{{ u.phone }}</td>
                     <td class="px-4 py-3">{{ u.email }}</td>
                     <td class="px-4 py-3 capitalize">{{ u.role }}</td>
@@ -238,6 +259,29 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
               }
 
               <form (ngSubmit)="saveEdit(editing)" class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-ink mb-1">Photo <span class="text-sub font-normal">(optional)</span></label>
+                  <div class="flex items-center gap-3">
+                    <span class="h-14 w-14 rounded-full overflow-hidden bg-brand-100 text-brand-700 flex items-center justify-center shrink-0 font-serif font-semibold">
+                      @if (editAvatarPreview()) {
+                        <img [src]="editAvatarPreview()" alt="Avatar preview" class="h-full w-full object-cover" />
+                      } @else if (!editRemoveAvatar() && editing.avatar_url) {
+                        <img [src]="editing.avatar_url" alt="Avatar" class="h-full w-full object-cover" />
+                      } @else {
+                        {{ initials(editing.name) }}
+                      }
+                    </span>
+                    <div class="flex flex-col gap-1">
+                      <label for="editAvatarInput" class="text-sm text-brand-600 font-medium hover:underline cursor-pointer w-fit">
+                        {{ editAvatarPreview() || (!editRemoveAvatar() && editing.avatar_url) ? 'Change photo' : 'Add photo' }}
+                      </label>
+                      @if (editAvatarPreview() || (!editRemoveAvatar() && editing.avatar_url)) {
+                        <button type="button" (click)="removeEditAvatar()" class="text-xs text-red-600 hover:underline text-left w-fit">Remove photo</button>
+                      }
+                    </div>
+                  </div>
+                  <input id="editAvatarInput" type="file" accept="image/*" (change)="onEditAvatarSelected($event)" class="hidden" />
+                </div>
                 <div>
                   <label class="block text-sm font-medium text-ink mb-1">Username</label>
                   <input [value]="editing.username" disabled class="w-full rounded-lg border border-line bg-cream text-sub px-3 py-2" />
@@ -498,6 +542,10 @@ export class AdminDashboard {
   savingEdit = signal(false);
   allPermissions = ALL_PERMISSIONS;
 
+  editAvatarFile: File | null = null;
+  editAvatarPreview = signal<string | null>(null);
+  editRemoveAvatar = signal(false);
+
   resettingPassword = signal(false);
   resetPasswordMessage = signal('');
 
@@ -596,10 +644,34 @@ export class AdminDashboard {
     this.editIsActive.set(!!user.is_active);
     this.editError.set('');
     this.resetPasswordMessage.set('');
+    this.editAvatarFile = null;
+    this.editAvatarPreview.set(null);
+    this.editRemoveAvatar.set(false);
   }
 
   closeEdit() {
     this.editingUser.set(null);
+  }
+
+  initials(name: string): string {
+    return name.trim().charAt(0).toUpperCase() || '?';
+  }
+
+  onEditAvatarSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    this.editAvatarFile = file;
+    this.editAvatarPreview.set(URL.createObjectURL(file));
+    this.editRemoveAvatar.set(false);
+    input.value = '';
+  }
+
+  removeEditAvatar() {
+    this.editAvatarFile = null;
+    this.editAvatarPreview.set(null);
+    this.editRemoveAvatar.set(true);
   }
 
   resetPassword(user: User) {
@@ -628,15 +700,26 @@ export class AdminDashboard {
     this.editError.set('');
     this.savingEdit.set(true);
 
+    const formData = new FormData();
+    formData.append('name', this.editName);
+    formData.append('phone', this.editPhone);
+    formData.append('email', this.editEmail || '');
+    formData.append('role', this.editRole);
+    formData.append('is_active', this.editIsActive() ? '1' : '0');
+
+    if (this.editRole === 'employee') {
+      formData.append('permissions_included', '1');
+      this.editPermissions().forEach((perm) => formData.append('permissions[]', perm));
+    }
+
+    if (this.editAvatarFile) {
+      formData.append('avatar', this.editAvatarFile);
+    } else if (this.editRemoveAvatar()) {
+      formData.append('remove_avatar', '1');
+    }
+
     this.http
-      .patch<User>(`${environment.apiUrl}/admin/users/${user.id}`, {
-        name: this.editName,
-        phone: this.editPhone,
-        email: this.editEmail || null,
-        role: this.editRole,
-        permissions: this.editRole === 'employee' ? this.editPermissions() : [],
-        is_active: this.editIsActive(),
-      })
+      .post<User>(`${environment.apiUrl}/admin/users/${user.id}`, formData)
       .subscribe({
         next: (updated) => {
           this.users.update((users) => users.map((u) => (u.id === user.id ? { ...u, ...updated } : u)));

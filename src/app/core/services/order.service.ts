@@ -1,14 +1,16 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { environment } from '../../../environments/environment';
-import { Order, OrderStatus, Paginated } from '../models';
+import { Order, OrderStatus, Paginated, PaymentMethod } from '../models';
 
 export interface PlaceOrderPayload {
   shipping_name: string;
   shipping_address: string;
   shipping_phone: string;
   district_id: number;
-  items: { product_id: number; quantity: number }[];
+  payment_method: PaymentMethod;
+  payment_transaction_id?: string;
+  items: { product_id: number; variant_id?: number; quantity: number }[];
 }
 
 @Injectable({ providedIn: 'root' })

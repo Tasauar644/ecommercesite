@@ -1,7 +1,9 @@
 import { CurrencyPipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { AuthService } from '../../../core/services/auth.service';
 import { DeliveryZone, DistrictService } from '../../../core/services/district.service';
+import { PaymentSettingService } from '../../../core/services/payment-setting.service';
 
 @Component({
   selector: 'app-admin-delivery',
@@ -46,10 +48,46 @@ import { DeliveryZone, DistrictService } from '../../../core/services/district.s
         </ul>
       }
     </div>
+
+    @if (auth.isSuperAdmin()) {
+      <div class="bg-white border border-line rounded-2xl p-6 mt-6">
+        <h2 class="font-serif font-semibold text-lg text-ink mb-1">Payment Settings</h2>
+        <p class="text-sm text-sub mb-4">The bKash number customers are told to send payment to at checkout. Only superadmins can change this.</p>
+
+        @if (paymentError()) {
+          <div class="mb-4 rounded-lg bg-red-50 text-red-700 text-sm px-3 py-2">{{ paymentError() }}</div>
+        }
+        @if (paymentSaved()) {
+          <div class="mb-4 rounded-lg bg-[#E3F3E7] text-[#2F7A4F] text-sm px-3 py-2">bKash number updated.</div>
+        }
+
+        @if (loadingPayment()) {
+          <p class="text-sub text-sm">Loading...</p>
+        } @else {
+          <div class="flex items-center gap-3">
+            <input
+              [(ngModel)]="bkashNumber"
+              name="bkashNumber"
+              placeholder="e.g. 01712345678"
+              class="flex-1 rounded-lg border border-line px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+            <button
+              (click)="saveBkashNumber()"
+              [disabled]="savingPayment()"
+              class="bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white font-semibold rounded-lg px-4 py-2 text-sm transition"
+            >
+              {{ savingPayment() ? 'Saving...' : 'Save' }}
+            </button>
+          </div>
+        }
+      </div>
+    }
   `,
 })
 export class AdminDelivery {
+  auth = inject(AuthService);
   private districtService = inject(DistrictService);
+  private paymentSettingService = inject(PaymentSettingService);
 
   zones = signal<DeliveryZone[]>([]);
   loading = signal(true);
@@ -59,8 +97,17 @@ export class AdminDelivery {
   editCharge: number | null = null;
   saving = signal(false);
 
+  bkashNumber = '';
+  loadingPayment = signal(true);
+  savingPayment = signal(false);
+  paymentError = signal('');
+  paymentSaved = signal(false);
+
   constructor() {
     this.load();
+    if (this.auth.isSuperAdmin()) {
+      this.loadPaymentSettings();
+    }
   }
 
   private load() {
@@ -71,6 +118,34 @@ export class AdminDelivery {
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
+    });
+  }
+
+  private loadPaymentSettings() {
+    this.loadingPayment.set(true);
+    this.paymentSettingService.adminGet().subscribe({
+      next: (settings) => {
+        this.bkashNumber = settings.bkash_number ?? '';
+        this.loadingPayment.set(false);
+      },
+      error: () => this.loadingPayment.set(false),
+    });
+  }
+
+  saveBkashNumber() {
+    this.paymentError.set('');
+    this.paymentSaved.set(false);
+    this.savingPayment.set(true);
+
+    this.paymentSettingService.adminUpdate(this.bkashNumber.trim()).subscribe({
+      next: () => {
+        this.savingPayment.set(false);
+        this.paymentSaved.set(true);
+      },
+      error: (err) => {
+        this.savingPayment.set(false);
+        this.paymentError.set(err?.error?.message || 'Could not update the bKash number.');
+      },
     });
   }
 

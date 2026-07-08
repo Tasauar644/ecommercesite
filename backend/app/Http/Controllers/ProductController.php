@@ -13,7 +13,9 @@ class ProductController extends Controller
 
     public function index(Request $request)
     {
-        $query = Product::query()->with(['seller:id,name', 'category:id,name', 'productImages'])->where('quantity', '>', 0);
+        $query = Product::query()
+            ->with(['seller:id,name', 'category:id,name', 'productImages', 'variants.productImages'])
+            ->where('quantity', '>', 0);
 
         if ($search = $request->query('search')) {
             $query->where('name', 'like', "%{$search}%");
@@ -28,7 +30,7 @@ class ProductController extends Controller
 
     public function show(Product $product)
     {
-        return $product->load('seller:id,name', 'category:id,name', 'productImages');
+        return $product->load('seller:id,name', 'category:id,name', 'productImages', 'variants.productImages');
     }
 
     public function mine(Request $request)

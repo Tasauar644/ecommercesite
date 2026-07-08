@@ -120,7 +120,9 @@ import { Customer, Order, OrderStatus } from '../../../core/models';
                                 <img [src]="item.product?.image_url || item.product_image" [alt]="item.product?.name || item.product_name || ''" class="h-full w-full object-cover" />
                               }
                             </div>
-                            <span class="text-brand-700 font-medium truncate">{{ item.product?.name || item.product_name || 'Product removed' }} &times; {{ item.quantity }}</span>
+                            <span class="text-brand-700 font-medium truncate">
+                              {{ item.product?.name || item.product_name || 'Product removed' }}{{ item.variant_color_name ? ' (' + item.variant_color_name + ')' : '' }} &times; {{ item.quantity }}
+                            </span>
                           </div>
                           <span class="text-ink font-semibold shrink-0">{{ item.quantity * +item.unit_price | currency:'BDT':'symbol':'1.0-0' }}</span>
                         </div>
@@ -133,6 +135,13 @@ import { Customer, Order, OrderStatus } from '../../../core/models';
                     <div class="flex justify-between mt-1.5 pt-2.5 border-t border-line font-bold text-ink text-sm">
                       <span>Total</span>
                       <span>{{ order.total | currency:'BDT':'symbol':'1.0-0' }}</span>
+                    </div>
+                    <div class="flex justify-between mt-1.5 text-xs text-sub">
+                      <span>Payment</span>
+                      <span>
+                        {{ order.payment_method === 'bkash' ? 'bKash' : 'Cash on Delivery' }}
+                        @if (order.payment_transaction_id) { &middot; TrxID {{ order.payment_transaction_id }} }
+                      </span>
                     </div>
                   </div>
                 </div>

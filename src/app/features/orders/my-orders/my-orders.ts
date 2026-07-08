@@ -49,7 +49,10 @@ import { Order, OrderStatus } from '../../../core/models';
                           }
                         </div>
                         <div class="min-w-0">
-                          <p class="text-sm font-medium text-gray-900 truncate">{{ item.product?.name || item.product_name || 'Product removed' }}</p>
+                          <p class="text-sm font-medium text-gray-900 truncate">
+                            {{ item.product?.name || item.product_name || 'Product removed' }}
+                            @if (item.variant_color_name) { <span class="text-gray-500 font-normal">({{ item.variant_color_name }})</span> }
+                          </p>
                           <p class="text-xs text-gray-500">Qty {{ item.quantity }} &times; {{ item.unit_price | currency:'BDT':'symbol':'1.0-0' }}</p>
                         </div>
                       </div>
@@ -66,6 +69,13 @@ import { Order, OrderStatus } from '../../../core/models';
                   <div class="flex justify-between font-semibold text-gray-900">
                     <span>Total</span>
                     <span>{{ order.total | currency:'BDT':'symbol':'1.0-0' }}</span>
+                  </div>
+                  <div class="flex justify-between text-sm text-gray-500 pt-1">
+                    <span>Payment</span>
+                    <span>
+                      {{ order.payment_method === 'bkash' ? 'bKash' : 'Cash on Delivery' }}
+                      @if (order.payment_transaction_id) { &middot; TrxID {{ order.payment_transaction_id }} }
+                    </span>
                   </div>
                 </div>
               </div>

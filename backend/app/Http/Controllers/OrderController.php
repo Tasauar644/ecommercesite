@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\District;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -16,14 +17,14 @@ class OrderController extends Controller
     {
         $order = $this->createOrder($request, $request->user()->id);
 
-        return response()->json($order->load('items.product', 'district'), 201);
+        return response()->json($order->load('items.product', 'items.variant', 'district'), 201);
     }
 
     public function guestStore(Request $request)
     {
         $order = $this->createOrder($request, null);
 
-        return response()->json($order->load('items.product', 'district'), 201);
+        return response()->json($order->load('items.product', 'items.variant', 'district'), 201);
     }
 
     private function createOrder(Request $request, ?int $customerId): Order
@@ -36,8 +37,11 @@ class OrderController extends Controller
             ],
             'shipping_phone' => ['required', 'string', 'regex:/^(?:\+?880|0)1[3-9]\d{8}$/'],
             'district_id' => ['required', 'integer', 'exists:districts,id'],
+            'payment_method' => ['required', Rule::in(['cod', 'bkash'])],
+            'payment_transaction_id' => ['required_if:payment_method,bkash', 'nullable', 'string', 'max:50'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
+            'items.*.variant_id' => ['nullable', 'integer', 'exists:product_variants,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
         ], [
             'shipping_address.regex' => 'Enter a complete address, including a house/road number and area (e.g. House 12, Road 5, Dhanmondi, Dhaka).',
@@ -52,13 +56,22 @@ class OrderController extends Controller
             $productIds = collect($data['items'])->pluck('product_id');
             $products = Product::whereIn('id', $productIds)->lockForUpdate()->get()->keyBy('id');
 
+            $variantIds = collect($data['items'])->pluck('variant_id')->filter();
+            $variants = ProductVariant::whereIn('id', $variantIds)->lockForUpdate()->get()->keyBy('id');
+
             $subtotal = 0;
             $lineItems = [];
 
             foreach ($data['items'] as $item) {
                 $product = $products->get($item['product_id']);
+                $variant = isset($item['variant_id']) ? $variants->get($item['variant_id']) : null;
 
-                if (! $product || $product->quantity < $item['quantity']) {
+                // Stock and price come from the chosen color variant when one was selected;
+                // plain (non-variant) products fall back to their own price/quantity.
+                $availableQuantity = $variant ? $variant->quantity : $product?->quantity;
+                $unitPrice = $variant ? $variant->price : $product?->price;
+
+                if (! $product || ($variant && $variant->product_id !== $product->id) || $availableQuantity < $item['quantity']) {
                     throw ValidationException::withMessages([
                         'items' => ['Insufficient stock for '.($product?->name ?? 'one of the selected products').'.'],
                     ]);
@@ -66,9 +79,11 @@ class OrderController extends Controller
 
                 $lineItems[] = [
                     'product' => $product,
+                    'variant' => $variant,
                     'quantity' => $item['quantity'],
+                    'unit_price' => $unitPrice,
                 ];
-                $subtotal += $product->price * $item['quantity'];
+                $subtotal += $unitPrice * $item['quantity'];
             }
 
             $order = Order::create([
@@ -76,6 +91,8 @@ class OrderController extends Controller
                 'district_id' => $district->id,
                 'delivery_charge' => $district->delivery_charge,
                 'status' => 'pending',
+                'payment_method' => $data['payment_method'],
+                'payment_transaction_id' => $data['payment_transaction_id'] ?? null,
                 'shipping_name' => $data['shipping_name'],
                 'shipping_address' => $data['shipping_address'],
                 'shipping_phone' => $data['shipping_phone'],
@@ -84,17 +101,25 @@ class OrderController extends Controller
 
             foreach ($lineItems as $lineItem) {
                 $product = $lineItem['product'];
+                $variant = $lineItem['variant'];
 
                 $order->items()->create([
                     'product_id' => $product->id,
+                    'product_variant_id' => $variant?->id,
+                    'variant_color_name' => $variant?->color_name,
                     'product_name' => $product->name,
-                    'product_image' => $product->image_url,
+                    'product_image' => $variant?->images[0]['url'] ?? $product->image_url,
                     'seller_id' => $product->seller_id,
                     'quantity' => $lineItem['quantity'],
-                    'unit_price' => $product->price,
+                    'unit_price' => $lineItem['unit_price'],
                 ]);
 
-                $product->decrement('quantity', $lineItem['quantity']);
+                if ($variant) {
+                    $variant->decrement('quantity', $lineItem['quantity']);
+                    $product->decrement('quantity', $lineItem['quantity']);
+                } else {
+                    $product->decrement('quantity', $lineItem['quantity']);
+                }
             }
 
             return $order;
@@ -103,7 +128,7 @@ class OrderController extends Controller
 
     public function myOrders(Request $request)
     {
-        return $request->user()->orders()->with('items.product', 'district')->latest()->paginate(10);
+        return $request->user()->orders()->with('items.product', 'items.variant', 'district')->latest()->paginate(10);
     }
 
     public function sellerOrders(Request $request)
@@ -111,14 +136,14 @@ class OrderController extends Controller
         $sellerId = $request->user()->id;
 
         return Order::whereHas('items', fn ($q) => $q->where('seller_id', $sellerId))
-            ->with(['items' => fn ($q) => $q->where('seller_id', $sellerId), 'items.product', 'customer:id,name,phone,email', 'district'])
+            ->with(['items' => fn ($q) => $q->where('seller_id', $sellerId), 'items.product', 'items.variant', 'customer:id,name,phone,email', 'district'])
             ->latest()
             ->paginate(10);
     }
 
     public function adminOrders(Request $request)
     {
-        $query = Order::with('items.product', 'customer:id,name,phone,email', 'district');
+        $query = Order::with('items.product', 'items.variant', 'customer:id,name,phone,email', 'district');
 
         if ($search = $request->query('search')) {
             $query->where(function ($q) use ($search) {

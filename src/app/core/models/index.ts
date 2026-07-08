@@ -23,6 +23,7 @@ export interface User {
   username: string;
   phone: string;
   email?: string | null;
+  avatar_url?: string | null;
   role: Role;
   permissions?: Permission[] | null;
   is_active?: boolean;
@@ -52,6 +53,16 @@ export interface ProductImage {
   url: string;
 }
 
+export interface ProductVariant {
+  id: number;
+  product_id: number;
+  color_name: string;
+  color_hex: string | null;
+  price: string;
+  quantity: number;
+  images: ProductImage[];
+}
+
 export interface Product {
   id: number;
   seller_id: number;
@@ -62,12 +73,14 @@ export interface Product {
   quantity: number;
   image_url: string | null;
   images: ProductImage[];
+  variants?: ProductVariant[];
   seller?: { id: number; name: string };
   category?: { id: number; name: string };
   created_at?: string;
 }
 
 export type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+export type PaymentMethod = 'cod' | 'bkash';
 
 export interface Banner {
   id: number;
@@ -86,12 +99,15 @@ export interface OrderItem {
   id: number;
   order_id: number;
   product_id: number | null;
+  product_variant_id: number | null;
+  variant_color_name: string | null;
   product_name: string | null;
   product_image: string | null;
   seller_id: number;
   quantity: number;
   unit_price: string;
   product?: Product | null;
+  variant?: ProductVariant | null;
 }
 
 export interface Order {
@@ -99,6 +115,8 @@ export interface Order {
   customer_id: number | null;
   district_id: number | null;
   status: OrderStatus;
+  payment_method: PaymentMethod;
+  payment_transaction_id: string | null;
   shipping_name: string;
   shipping_address: string;
   shipping_phone: string;
@@ -119,5 +137,6 @@ export interface Paginated<T> {
 
 export interface CartItem {
   product: Product;
+  variant?: ProductVariant | null;
   quantity: number;
 }

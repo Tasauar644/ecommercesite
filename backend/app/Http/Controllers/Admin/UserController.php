@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
@@ -16,7 +17,7 @@ class UserController extends Controller
 
     public function index(Request $request)
     {
-        $query = User::select('id', 'name', 'username', 'phone', 'email', 'role', 'permissions', 'is_active', 'created_at');
+        $query = User::select('id', 'name', 'username', 'phone', 'email', 'avatar_path', 'role', 'permissions', 'is_active', 'created_at');
 
         // A plain admin only ever sees employee accounts — not other admins, not superadmins, not even themselves.
         // Only a superadmin sees the full staff list.
@@ -43,7 +44,29 @@ class UserController extends Controller
             'role' => ['sometimes', 'required', Rule::in(['employee', 'admin', 'superadmin'])],
             'permissions' => ['array'],
             'permissions.*' => [Rule::in(self::PERMISSIONS)],
+            'avatar' => ['nullable', 'image', 'max:2048'],
+            'remove_avatar' => ['sometimes', 'boolean'],
         ]);
+
+        $removeAvatar = $data['remove_avatar'] ?? false;
+        unset($data['avatar'], $data['remove_avatar']);
+
+        // A multipart request can't express "an empty array" for permissions[] — sending
+        // zero entries just omits the key entirely, which would otherwise be indistinguishable
+        // from "the caller didn't touch permissions at all". This marker disambiguates it.
+        if ($request->boolean('permissions_included') && ! array_key_exists('permissions', $data)) {
+            $data['permissions'] = [];
+        }
+
+        if ($request->hasFile('avatar')) {
+            if ($user->avatar_path) {
+                Storage::disk('public')->delete($user->avatar_path);
+            }
+            $data['avatar_path'] = $request->file('avatar')->store('avatars', 'public');
+        } elseif ($removeAvatar && $user->avatar_path) {
+            Storage::disk('public')->delete($user->avatar_path);
+            $data['avatar_path'] = null;
+        }
 
         $isSelf = $user->id === $request->user()->id;
 

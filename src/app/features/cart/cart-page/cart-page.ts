@@ -3,6 +3,7 @@ import { Component, effect, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { CartService } from '../../../core/services/cart.service';
+import { CartItem } from '../../../core/models';
 
 @Component({
   selector: 'app-cart-page',
@@ -18,11 +19,11 @@ import { CartService } from '../../../core/services/cart.service';
         </div>
       } @else {
         <div class="bg-white border border-gray-200 rounded-2xl divide-y divide-gray-100">
-          @for (item of cart.items(); track item.product.id) {
+          @for (item of cart.items(); track item.product.id + '-' + (item.variant?.id ?? 0)) {
             <div class="flex items-center gap-4 p-4">
               <div class="h-16 w-16 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
-                @if (item.product.image_url) {
-                  <img [src]="item.product.image_url" [alt]="item.product.name" class="h-full w-full object-cover" />
+                @if (item.variant?.images?.[0]?.url || item.product.image_url) {
+                  <img [src]="item.variant?.images?.[0]?.url || item.product.image_url" [alt]="item.product.name" class="h-full w-full object-cover" />
                 } @else {
                   <span class="text-xs text-gray-300">No image</span>
                 }
@@ -30,21 +31,29 @@ import { CartService } from '../../../core/services/cart.service';
 
               <div class="flex-1 min-w-0">
                 <p class="font-medium text-gray-900 truncate">{{ item.product.name }}</p>
-                <p class="text-sm text-gray-500">{{ item.product.price | currency:'BDT':'symbol':'1.0-0' }} each</p>
+                @if (item.variant) {
+                  <p class="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
+                    @if (item.variant.color_hex) {
+                      <span class="h-2.5 w-2.5 rounded-full border border-gray-200 shrink-0" [style.background]="item.variant.color_hex"></span>
+                    }
+                    {{ item.variant.color_name }}
+                  </p>
+                }
+                <p class="text-sm text-gray-500">{{ (item.variant?.price ?? item.product.price) | currency:'BDT':'symbol':'1.0-0' }} each</p>
               </div>
 
               <input
                 type="number"
                 [value]="item.quantity"
                 min="1"
-                [max]="item.product.quantity"
-                (change)="updateQuantity(item.product.id, $event)"
+                [max]="item.variant?.quantity ?? item.product.quantity"
+                (change)="updateQuantity(item, $event)"
                 class="w-16 rounded-lg border border-gray-300 px-2 py-1.5 text-center"
               />
 
-              <p class="w-20 text-right font-medium text-gray-900">{{ item.quantity * +item.product.price | currency:'BDT':'symbol':'1.0-0' }}</p>
+              <p class="w-20 text-right font-medium text-gray-900">{{ item.quantity * +(item.variant?.price ?? item.product.price) | currency:'BDT':'symbol':'1.0-0' }}</p>
 
-              <button (click)="cart.remove(item.product.id)" class="text-gray-400 hover:text-red-600" aria-label="Remove">
+              <button (click)="cart.remove(item.product.id, item.variant?.id)" class="text-gray-400 hover:text-red-600" aria-label="Remove">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -82,8 +91,8 @@ export class CartPage {
     });
   }
 
-  updateQuantity(productId: number, event: Event) {
+  updateQuantity(item: CartItem, event: Event) {
     const value = Number((event.target as HTMLInputElement).value);
-    this.cart.updateQuantity(productId, Math.max(1, value || 1));
+    this.cart.updateQuantity(item.product.id, Math.max(1, value || 1), item.variant?.id);
   }
 }

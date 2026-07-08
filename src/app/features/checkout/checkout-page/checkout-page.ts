@@ -6,7 +6,8 @@ import { AuthService } from '../../../core/services/auth.service';
 import { CartService } from '../../../core/services/cart.service';
 import { DistrictService } from '../../../core/services/district.service';
 import { OrderService } from '../../../core/services/order.service';
-import { District } from '../../../core/models';
+import { PaymentSettingService } from '../../../core/services/payment-setting.service';
+import { District, PaymentMethod } from '../../../core/models';
 import { isValidAddress, isValidBangladeshPhone } from '../../../core/utils/validators';
 
 @Component({
@@ -115,6 +116,51 @@ import { isValidAddress, isValidBangladeshPhone } from '../../../core/utils/vali
               }
             </div>
 
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Payment method</label>
+              <div class="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  (click)="paymentMethod.set('cod')"
+                  class="rounded-lg border px-3 py-2.5 text-sm font-medium text-left transition"
+                  [class]="paymentMethod() === 'cod' ? 'border-brand-600 ring-2 ring-brand-600 bg-brand-50 text-brand-700' : 'border-gray-300 text-gray-700 hover:border-gray-400'"
+                >
+                  Cash on Delivery
+                </button>
+                <button
+                  type="button"
+                  (click)="paymentMethod.set('bkash')"
+                  class="rounded-lg border px-3 py-2.5 text-sm font-medium text-left transition"
+                  [class]="paymentMethod() === 'bkash' ? 'border-brand-600 ring-2 ring-brand-600 bg-brand-50 text-brand-700' : 'border-gray-300 text-gray-700 hover:border-gray-400'"
+                >
+                  bKash
+                </button>
+              </div>
+
+              @if (paymentMethod() === 'bkash') {
+                <div class="mt-3 rounded-lg bg-brand-50 text-brand-700 text-sm px-3 py-2.5 space-y-1">
+                  @if (bkashNumber()) {
+                    <p>
+                      Send <strong>{{ grandTotal() | currency:'BDT':'symbol':'1.0-0' }}</strong> to bKash number
+                      <strong>{{ bkashNumber() }}</strong> (Send Money), then enter the Transaction ID below.
+                    </p>
+                  } @else {
+                    <p>bKash payment isn't set up yet — please choose Cash on Delivery.</p>
+                  }
+                </div>
+                <input
+                  [(ngModel)]="transactionId"
+                  name="transactionId"
+                  placeholder="bKash Transaction ID"
+                  class="w-full mt-2 rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  [class]="transactionIdError() ? 'border-red-400' : 'border-gray-300'"
+                />
+                @if (transactionIdError()) {
+                  <p class="text-xs text-red-600 mt-1">{{ transactionIdError() }}</p>
+                }
+              }
+            </div>
+
             <button
               type="submit"
               [disabled]="placing()"
@@ -127,10 +173,12 @@ import { isValidAddress, isValidBangladeshPhone } from '../../../core/utils/vali
           <div class="md:col-span-2 bg-white border border-gray-200 rounded-2xl p-6 h-fit">
             <h2 class="font-semibold text-gray-900 mb-4">Order summary</h2>
             <div class="space-y-3 text-sm">
-              @for (item of cart.items(); track item.product.id) {
+              @for (item of cart.items(); track item.product.id + '-' + (item.variant?.id ?? 0)) {
                 <div class="flex justify-between">
-                  <span class="text-gray-600">{{ item.product.name }} &times; {{ item.quantity }}</span>
-                  <span class="text-gray-900 font-medium">{{ item.quantity * +item.product.price | currency:'BDT':'symbol':'1.0-0' }}</span>
+                  <span class="text-gray-600">
+                    {{ item.product.name }}{{ item.variant ? ' (' + item.variant.color_name + ')' : '' }} &times; {{ item.quantity }}
+                  </span>
+                  <span class="text-gray-900 font-medium">{{ item.quantity * +(item.variant?.price ?? item.product.price) | currency:'BDT':'symbol':'1.0-0' }}</span>
                 </div>
               }
             </div>
@@ -157,6 +205,7 @@ export class CheckoutPage {
   auth = inject(AuthService);
   private orderService = inject(OrderService);
   private districtService = inject(DistrictService);
+  private paymentSettingService = inject(PaymentSettingService);
   private router = inject(Router);
 
   shippingName = '';
@@ -166,6 +215,11 @@ export class CheckoutPage {
   districts = signal<District[]>([]);
   districtSearch = signal('');
   districtDropdownOpen = signal(false);
+
+  paymentMethod = signal<PaymentMethod>('cod');
+  transactionId = '';
+  transactionIdError = signal('');
+  bkashNumber = signal<string | null>(null);
 
   filteredDistricts = computed(() => {
     const term = this.districtSearch().trim().toLowerCase();
@@ -190,6 +244,7 @@ export class CheckoutPage {
 
   constructor() {
     this.districtService.list().subscribe((districts) => this.districts.set(districts));
+    this.paymentSettingService.get().subscribe((settings) => this.bkashNumber.set(settings.bkash_number));
 
     const currentUser = this.auth.currentUser();
     if (currentUser) {
@@ -227,6 +282,7 @@ export class CheckoutPage {
     this.addressError.set('');
     this.phoneError.set('');
     this.districtError.set('');
+    this.transactionIdError.set('');
 
     if (!isValidAddress(this.shippingAddress)) {
       this.addressError.set('Enter a complete address, including a house/road number and area.');
@@ -237,7 +293,10 @@ export class CheckoutPage {
     if (!this.districtId()) {
       this.districtError.set('Please select your district.');
     }
-    if (this.addressError() || this.phoneError() || this.districtError()) {
+    if (this.paymentMethod() === 'bkash' && !this.transactionId.trim()) {
+      this.transactionIdError.set('Enter the bKash Transaction ID.');
+    }
+    if (this.addressError() || this.phoneError() || this.districtError() || this.transactionIdError()) {
       return;
     }
 
@@ -248,7 +307,13 @@ export class CheckoutPage {
       shipping_address: this.shippingAddress,
       shipping_phone: this.shippingPhone,
       district_id: this.districtId()!,
-      items: this.cart.items().map((i) => ({ product_id: i.product.id, quantity: i.quantity })),
+      payment_method: this.paymentMethod(),
+      payment_transaction_id: this.paymentMethod() === 'bkash' ? this.transactionId.trim() : undefined,
+      items: this.cart.items().map((i) => ({
+        product_id: i.product.id,
+        variant_id: i.variant?.id,
+        quantity: i.quantity,
+      })),
     };
 
     const request = this.auth.isLoggedIn() ? this.orderService.place(payload) : this.orderService.placeGuest(payload);

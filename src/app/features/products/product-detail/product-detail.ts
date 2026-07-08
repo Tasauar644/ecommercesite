@@ -4,7 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { CartService } from '../../../core/services/cart.service';
 import { ProductService } from '../../../core/services/product.service';
-import { Product } from '../../../core/models';
+import { Product, ProductVariant } from '../../../core/models';
 import { ProductCard } from '../product-card/product-card';
 
 const RELATED_COUNT = 4;
@@ -73,11 +73,35 @@ const RELATED_COUNT = 4;
               <span class="text-xs font-medium text-brand-600">{{ product.category.name }}</span>
             }
             <h1 class="text-3xl font-bold text-gray-900">{{ product.name }}</h1>
-            <p class="text-3xl font-bold text-brand-600 mt-4">{{ product.price | currency:'BDT':'symbol':'1.0-0' }}</p>
+            <p class="text-3xl font-bold text-brand-600 mt-4">{{ displayPrice() | currency:'BDT':'symbol':'1.0-0' }}</p>
             <p class="text-gray-600 mt-4 leading-relaxed">{{ product.description }}</p>
 
-            <p class="text-sm mt-4" [class]="product.quantity > 0 ? 'text-green-600' : 'text-red-600'">
-              {{ product.quantity > 0 ? product.quantity + ' in stock' : 'Out of stock' }}
+            @if (product.variants && product.variants.length > 0) {
+              <div class="mt-5">
+                <p class="text-sm font-medium text-gray-700 mb-2">Color: {{ selectedVariant()?.color_name }}</p>
+                <div class="flex flex-wrap gap-2">
+                  @for (variant of product.variants; track variant.id) {
+                    <button
+                      type="button"
+                      (click)="selectVariant(variant)"
+                      class="flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition"
+                      [class]="selectedVariant()?.id === variant.id ? 'border-brand-600 ring-2 ring-brand-600 bg-brand-50 text-brand-700' : 'border-gray-300 text-gray-700 hover:border-gray-400'"
+                    >
+                      @if (variant.color_hex) {
+                        <span class="h-3.5 w-3.5 rounded-full border border-black/10 shrink-0" [style.background]="variant.color_hex"></span>
+                      }
+                      {{ variant.color_name }}
+                      @if (variant.quantity === 0) {
+                        <span class="text-xs text-gray-400">(out of stock)</span>
+                      }
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+
+            <p class="text-sm mt-4" [class]="displayQuantity() > 0 ? 'text-green-600' : 'text-red-600'">
+              {{ displayQuantity() > 0 ? displayQuantity() + ' in stock' : 'Out of stock' }}
             </p>
 
             @if (!auth.isEmployee() && !auth.isAdmin()) {
@@ -87,12 +111,12 @@ const RELATED_COUNT = 4;
                   [value]="quantity()"
                   (input)="setQuantity($event)"
                   min="1"
-                  [max]="product.quantity"
+                  [max]="displayQuantity()"
                   class="w-20 rounded-lg border border-gray-300 px-3 py-2"
                 />
                 <button
                   (click)="addToCart(product)"
-                  [disabled]="product.quantity === 0"
+                  [disabled]="displayQuantity() === 0"
                   class="flex-1 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg py-2.5 transition"
                 >
                   Add to cart
@@ -131,13 +155,19 @@ export class ProductDetail {
   quantity = signal(1);
   relatedProducts = signal<Product[]>([]);
   imageIndex = signal(0);
+  selectedVariant = signal<ProductVariant | null>(null);
 
   images = computed(() => {
     const product = this.product();
     if (!product) return [];
+    const variantImages = this.selectedVariant()?.images;
+    if (variantImages?.length) return variantImages.map((img) => img.url);
     if (product.images?.length) return product.images.map((img) => img.url);
     return product.image_url ? [product.image_url] : [];
   });
+
+  displayPrice = computed(() => this.selectedVariant()?.price ?? this.product()?.price ?? '0');
+  displayQuantity = computed(() => this.selectedVariant()?.quantity ?? this.product()?.quantity ?? 0);
 
   constructor() {
     this.route.paramMap.subscribe((params) => {
@@ -148,16 +178,24 @@ export class ProductDetail {
       this.relatedProducts.set([]);
       this.imageIndex.set(0);
       this.quantity.set(1);
+      this.selectedVariant.set(null);
 
       this.productService.get(id).subscribe({
         next: (product) => {
           this.product.set(product);
+          this.selectedVariant.set(product.variants?.[0] ?? null);
           this.loading.set(false);
           this.loadRelated(product);
         },
         error: () => this.loading.set(false),
       });
     });
+  }
+
+  selectVariant(variant: ProductVariant) {
+    this.selectedVariant.set(variant);
+    this.imageIndex.set(0);
+    this.quantity.set(1);
   }
 
   private loadRelated(product: Product) {
@@ -189,7 +227,7 @@ export class ProductDetail {
   }
 
   addToCart(product: Product) {
-    this.cart.add(product, this.quantity());
+    this.cart.add(product, this.quantity(), this.selectedVariant());
   }
 
   prevImage() {

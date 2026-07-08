@@ -10,6 +10,8 @@ class Order extends Model
         'customer_id',
         'district_id',
         'status',
+        'payment_method',
+        'payment_transaction_id',
         'shipping_name',
         'shipping_address',
         'shipping_phone',

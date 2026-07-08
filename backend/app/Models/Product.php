@@ -56,7 +56,9 @@ class Product extends Model
 
     public function productImages()
     {
-        return $this->hasMany(ProductImage::class)->orderBy('position');
+        // Scoped to the product's own (non-variant) images; a variant's images
+        // live on the same table but are fetched through ProductVariant::productImages().
+        return $this->hasMany(ProductImage::class)->whereNull('product_variant_id')->orderBy('position');
     }
 
     public function seller()
@@ -72,5 +74,10 @@ class Product extends Model
     public function orderItems()
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function variants()
+    {
+        return $this->hasMany(ProductVariant::class);
     }
 }
