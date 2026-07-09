@@ -21,6 +21,16 @@ import { isValidAddress, isValidBangladeshPhone } from '../../../core/utils/vali
         <div class="text-center py-16 bg-white border border-gray-200 rounded-2xl">
           <p class="text-lg font-semibold text-gray-900 mb-2">Order #{{ orderId }} placed!</p>
           <p class="text-gray-500 mb-4">We'll use the phone number you provided for delivery updates.</p>
+          <p class="text-sm text-gray-500 mb-4">
+            Save your order number to check its status later:
+            <a
+              [routerLink]="['/track-order']"
+              [queryParams]="{ order_id: orderId, phone: shippingPhone }"
+              class="text-brand-600 font-medium hover:underline"
+            >
+              Track this order
+            </a>
+          </p>
           <a routerLink="/products" class="text-brand-600 font-medium hover:underline">Continue shopping</a>
         </div>
       } @else if (cart.items().length === 0) {
@@ -121,8 +131,9 @@ import { isValidAddress, isValidBangladeshPhone } from '../../../core/utils/vali
               <div class="grid grid-cols-2 gap-3">
                 <button
                   type="button"
+                  [disabled]="!isDhaka()"
                   (click)="paymentMethod.set('cod')"
-                  class="rounded-lg border px-3 py-2.5 text-sm font-medium text-left transition"
+                  class="rounded-lg border px-3 py-2.5 text-sm font-medium text-left transition disabled:opacity-40 disabled:cursor-not-allowed"
                   [class]="paymentMethod() === 'cod' ? 'border-brand-600 ring-2 ring-brand-600 bg-brand-50 text-brand-700' : 'border-gray-300 text-gray-700 hover:border-gray-400'"
                 >
                   Cash on Delivery
@@ -136,6 +147,10 @@ import { isValidAddress, isValidBangladeshPhone } from '../../../core/utils/vali
                   bKash
                 </button>
               </div>
+
+              @if (!isDhaka() && districtId()) {
+                <p class="text-xs text-gray-500 mt-2">Cash on Delivery is only available within Dhaka. Outside Dhaka, please pay in full via bKash.</p>
+              }
 
               @if (paymentMethod() === 'bkash') {
                 <div class="mt-3 rounded-lg bg-brand-50 text-brand-700 text-sm px-3 py-2.5 space-y-1">
@@ -233,8 +248,11 @@ export class CheckoutPage {
   districtError = signal('');
   placedOrderId = signal<number | null>(null);
 
+  selectedDistrict = computed(() => this.districts().find((d) => d.id === this.districtId()) ?? null);
+  isDhaka = computed(() => this.selectedDistrict()?.name === 'Dhaka');
+
   deliveryCharge = computed(() => {
-    const district = this.districts().find((d) => d.id === this.districtId());
+    const district = this.selectedDistrict();
     return district ? +district.delivery_charge : 0;
   });
 
@@ -269,6 +287,12 @@ export class CheckoutPage {
     this.districtId.set(d.id);
     this.districtSearch.set(d.name);
     this.districtDropdownOpen.set(false);
+
+    // COD is Dhaka-only; leaving the district picker on an out-of-Dhaka pick
+    // with COD still selected would only surface as a rejection at submit time.
+    if (d.name !== 'Dhaka' && this.paymentMethod() === 'cod') {
+      this.paymentMethod.set('bkash');
+    }
   }
 
   onDistrictBlur() {
@@ -333,6 +357,7 @@ export class CheckoutPage {
         this.error.set(
           fieldErrors?.shipping_address?.[0] ||
             fieldErrors?.shipping_phone?.[0] ||
+            fieldErrors?.payment_method?.[0] ||
             err?.error?.message ||
             'Could not place your order.'
         );

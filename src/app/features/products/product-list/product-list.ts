@@ -12,7 +12,7 @@ import { ProductCard } from '../product-card/product-card';
   selector: 'app-product-list',
   imports: [ProductCard, FormsModule, HeroCarousel],
   template: `
-    <div class="max-w-6xl mx-auto px-4 py-8">
+    <div class="w-[92%] max-w-[2200px] mx-auto py-8">
       @if (!search()) {
         <div class="mb-8">
           <app-hero-carousel />
@@ -85,12 +85,10 @@ import { ProductCard } from '../product-card/product-card';
       } @else if (products().length === 0) {
         <p class="text-gray-500">No products found.</p>
       } @else {
-        <div #productGrid class="max-h-[600px] overflow-y-auto pr-1 -mr-1">
-          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
-            @for (product of products(); track product.id) {
-              <app-product-card [product]="product" (add)="addToCart($event)" />
-            }
-          </div>
+        <div #productGrid class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 min-[1800px]:grid-cols-7 gap-6">
+          @for (product of products(); track product.id) {
+            <app-product-card [product]="product" (add)="addToCart($event)" />
+          }
         </div>
 
         @if (lastPage() > 1) {
@@ -233,8 +231,7 @@ export class ProductList {
     if (page < 1 || page > this.lastPage() || page === this.currentPage()) return;
     this.currentPage.set(page);
     this.load();
-    // The grid box scrolls internally (fixed height); reset it to the top on page change.
-    this.productGrid()?.nativeElement.scrollTo({ top: 0, behavior: 'smooth' });
+    this.productGrid()?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   addToCart(product: Product) {

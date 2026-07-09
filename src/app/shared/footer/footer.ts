@@ -1,12 +1,13 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-footer',
   imports: [RouterLink],
   template: `
     <footer class="bg-ink text-[#D8CFC4]">
-      <div class="max-w-6xl mx-auto px-4 sm:px-10 py-3.5 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+      <div class="w-[92%] max-w-[2200px] mx-auto py-3.5 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
         <div class="flex items-center gap-2">
           <span class="h-6 w-6 rounded-md bg-brand-600 text-white flex items-center justify-center font-serif font-semibold text-[10px] shrink-0">DN</span>
           <span class="font-serif font-semibold text-sm text-white">Dream N Decor</span>
@@ -15,7 +16,7 @@ import { RouterLink } from '@angular/router';
         <nav class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
           <a routerLink="/products" class="hover:text-white">All products</a>
           <a href="mailto:hello@dreamndecor.com" class="hover:text-white">Contact</a>
-          <a routerLink="/orders" class="hover:text-white">Track order</a>
+          <a [routerLink]="auth.isLoggedIn() ? '/orders' : '/track-order'" class="hover:text-white">Track order</a>
         </nav>
 
         <div class="flex items-center gap-3">
@@ -47,5 +48,6 @@ import { RouterLink } from '@angular/router';
   `,
 })
 export class Footer {
+  auth = inject(AuthService);
   year = new Date().getFullYear();
 }

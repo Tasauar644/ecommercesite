@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BannerController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentSettingController;
@@ -26,6 +27,10 @@ Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/districts', [AdminDistrictController::class, 'index']);
 Route::get('/payment-settings', [PaymentSettingController::class, 'index']);
 Route::post('/guest-orders', [OrderController::class, 'guestStore']);
+// Throttled — this looks up an order by id+phone with no login, so it needs a brute-force guard.
+Route::post('/track-order', [OrderController::class, 'track'])->middleware('throttle:10,1');
+// Throttled — each message costs a real API call, so this needs an abuse/cost guard.
+Route::post('/chat', [ChatController::class, 'send'])->middleware('throttle:20,1');
 
 Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);

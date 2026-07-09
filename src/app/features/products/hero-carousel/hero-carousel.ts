@@ -8,7 +8,7 @@ const AUTO_ADVANCE_MS = 6000;
   selector: 'app-hero-carousel',
   template: `
     @if (currentBanner(); as banner) {
-      <div class="relative rounded-2xl overflow-hidden aspect-[21/7] sm:aspect-[21/6] max-h-72 sm:max-h-80 bg-cream">
+      <div class="relative rounded-2xl overflow-hidden h-56 sm:h-72 lg:h-80 xl:h-96 bg-cream">
         <img [src]="banner.image_url" [alt]="banner.caption || 'Banner'" class="absolute inset-0 w-full h-full object-cover" />
         <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent"></div>
 

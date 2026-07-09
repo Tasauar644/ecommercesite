@@ -14,10 +14,11 @@ const RELATED_COUNT = 4;
   imports: [CurrencyPipe, RouterLink, ProductCard],
   template: `
     @if (product(); as product) {
-      <div class="max-w-5xl mx-auto px-4 py-8">
-        <a routerLink="/products" class="text-sm text-gray-500 hover:text-brand-600">&larr; Back to products</a>
+      <div class="w-[92%] max-w-[2200px] mx-auto py-8">
+        <div class="max-w-6xl mx-auto">
+          <a routerLink="/products" class="text-sm text-gray-500 hover:text-brand-600">&larr; Back to products</a>
 
-        <div class="grid md:grid-cols-2 gap-10 mt-4">
+          <div class="grid md:grid-cols-2 gap-10 mt-4">
           <div>
             <div class="relative aspect-square bg-gray-100 rounded-2xl overflow-hidden flex items-center justify-center">
               @if (images().length > 0) {
@@ -123,6 +124,7 @@ const RELATED_COUNT = 4;
                 </button>
               </div>
             }
+          </div>
           </div>
         </div>
 

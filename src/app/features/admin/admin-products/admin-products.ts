@@ -99,7 +99,7 @@ const MAX_BANNERS = 4;
               placeholder="Search products..."
               class="text-sm rounded-full border border-line px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
-            <button type="submit" class="text-sm text-brand-600 font-medium hover:underline">Search</button>
+            <button type="submit" class="text-sm bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-full px-4 py-1.5 transition">Search</button>
           </form>
           <select [(ngModel)]="categoryId" (ngModelChange)="load()" class="text-sm rounded-full border border-line px-3 py-1.5">
             <option [ngValue]="null">All categories</option>
@@ -107,6 +107,18 @@ const MAX_BANNERS = 4;
               <option [ngValue]="category.id">{{ category.name }}</option>
             }
           </select>
+          @if (search || categoryId) {
+            <button
+              type="button"
+              (click)="resetFilters()"
+              aria-label="Reset filters"
+              class="h-9 w-9 rounded-full border border-line text-sub hover:text-brand-600 hover:border-brand-300 flex items-center justify-center transition shrink-0"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+              </svg>
+            </button>
+          }
           <a routerLink="/admin/products/new" class="bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-full px-5 py-2 transition text-sm">
             + Add product
           </a>
@@ -141,7 +153,7 @@ const MAX_BANNERS = 4;
                   <span class="font-semibold text-ink">{{ product.name }}</span>
                 </td>
                 <td class="px-4 py-4">
-                  <span class="text-xs font-semibold text-brand-700 bg-brand-100 rounded-full px-3 py-1 whitespace-nowrap">{{ product.category?.name || 'Uncategorized' }}</span>
+                  <span class="block w-full text-xs font-semibold text-brand-700 bg-brand-100 rounded-full px-3 py-1.5">{{ product.category?.name || 'Uncategorized' }}</span>
                 </td>
                 <td class="px-4 py-4 text-sub">{{ product.seller?.name }}</td>
                 <td class="px-4 py-4 font-bold text-ink">{{ product.price | currency:'BDT':'symbol':'1.0-0' }}</td>
@@ -244,6 +256,12 @@ export class AdminProducts {
   removeBanner(banner: Banner) {
     if (!confirm('Remove this banner?')) return;
     this.bannerService.adminDelete(banner.id).subscribe(() => this.loadBanners());
+  }
+
+  resetFilters() {
+    this.search = '';
+    this.categoryId = null;
+    this.load();
   }
 
   load() {

@@ -41,6 +41,10 @@ export const routes: Routes = [
     loadComponent: () => import('./features/orders/my-orders/my-orders').then((m) => m.MyOrders),
   },
   {
+    path: 'track-order',
+    loadComponent: () => import('./features/orders/track-order/track-order').then((m) => m.TrackOrder),
+  },
+  {
     path: 'admin',
     canActivate: [roleGuard('admin', 'superadmin', 'employee')],
     loadComponent: () => import('./features/admin/admin-dashboard/admin-dashboard').then((m) => m.AdminDashboard),

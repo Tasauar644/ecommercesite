@@ -30,9 +30,14 @@ export class OrderService {
     return this.http.get<Paginated<Order>>(`${this.base}/orders`);
   }
 
-  adminOrders(search?: string) {
+  track(phone: string, orderId?: number) {
+    return this.http.post<Order[]>(`${this.base}/track-order`, { order_id: orderId, phone });
+  }
+
+  adminOrders(search?: string, checkoutType?: 'guest' | 'account') {
     const params: Record<string, string> = {};
     if (search) params['search'] = search;
+    if (checkoutType) params['checkout_type'] = checkoutType;
     return this.http.get<Paginated<Order>>(`${this.base}/admin/orders`, { params });
   }
 

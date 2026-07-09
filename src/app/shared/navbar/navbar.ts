@@ -9,7 +9,7 @@ import { CartService } from '../../core/services/cart.service';
   imports: [RouterLink, RouterLinkActive, FormsModule],
   template: `
     <header class="sticky top-0 z-30 bg-white border-b border-line">
-      <div class="max-w-6xl mx-auto px-4 flex items-center gap-6 h-[72px]">
+      <div class="w-[92%] max-w-[2200px] mx-auto flex items-center gap-6 h-[72px]">
         <a routerLink="/" class="flex items-center gap-2.5 shrink-0">
           <span class="h-9 w-9 rounded-[10px] bg-brand-600 text-white flex items-center justify-center font-serif font-semibold text-sm">DN</span>
           <span class="font-serif font-semibold text-xl text-ink whitespace-nowrap">Dream N Decor</span>
@@ -29,6 +29,8 @@ import { CartService } from '../../core/services/cart.service';
         <nav class="ml-auto flex items-center gap-5 text-sm font-medium text-ink">
           @if (auth.isCustomer()) {
             <a routerLink="/orders" routerLinkActive="text-brand-600" class="hover:text-brand-600">My Orders</a>
+          } @else if (!auth.isLoggedIn()) {
+            <a routerLink="/track-order" routerLinkActive="text-brand-600" class="hover:text-brand-600">Track Order</a>
           }
           @if (auth.isEmployee() || auth.isAdmin()) {
             <a routerLink="/admin" routerLinkActive="text-brand-600" class="hover:text-brand-600">Admin</a>

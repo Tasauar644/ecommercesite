@@ -2,12 +2,13 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { environment } from '../../../../environments/environment';
 import { AuthService } from '../../../core/services/auth.service';
 import { EmployeeService } from '../../../core/services/employee.service';
 import { OrderService } from '../../../core/services/order.service';
 import { ALL_PERMISSIONS, Order, OrderStatus, Paginated, Permission, Role, User } from '../../../core/models';
+import { MyAccountModal } from '../../../shared/my-account-modal/my-account-modal';
 import { AdminCategories } from '../admin-categories/admin-categories';
 import { AdminCustomers } from '../admin-customers/admin-customers';
 import { AdminDelivery } from '../admin-delivery/admin-delivery';
@@ -17,33 +18,66 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
 
 @Component({
   selector: 'app-admin-dashboard',
-  imports: [CurrencyPipe, DatePipe, FormsModule, AdminProducts, AdminCategories, AdminCustomers, AdminDelivery],
+  imports: [CurrencyPipe, DatePipe, FormsModule, RouterLink, MyAccountModal, AdminProducts, AdminCategories, AdminCustomers, AdminDelivery],
   template: `
-    <div class="max-w-6xl mx-auto px-4 py-9">
-      <div class="mb-6">
-        <span class="text-xs font-bold text-brand-700 uppercase tracking-wide">Control center</span>
-        <h1 class="font-serif font-semibold text-3xl text-ink mt-1.5">
-          {{ auth.isSuperAdmin() ? 'Super Admin Dashboard' : auth.isEmployee() ? 'Employee Dashboard' : 'Admin Dashboard' }}
-        </h1>
-      </div>
+    <div class="flex h-full">
+      <aside class="w-64 shrink-0 bg-ink text-white flex flex-col h-full">
+        <a routerLink="/products" class="px-5 py-5 flex items-center gap-2.5 border-b border-white/10">
+          <span class="h-8 w-8 rounded-[9px] bg-brand-600 text-white flex items-center justify-center font-serif font-semibold text-[13px] shrink-0">DN</span>
+          <span class="font-serif font-semibold text-lg">Dream N Decor</span>
+        </a>
 
-      <div class="flex flex-wrap gap-2.5 mb-6">
-        @for (t of visibleTabs(); track t.id) {
-          <button
-            (click)="tab.set(t.id)"
-            class="px-5 py-2.5 rounded-full text-sm font-semibold transition"
-            [class]="tab() === t.id ? 'bg-brand-600 text-white shadow-[0_8px_18px_rgba(181,88,58,0.28)]' : 'bg-white border border-line text-ink'"
-          >
-            {{ t.label }}
+        <nav class="flex-1 overflow-y-auto px-3 py-5">
+          <p class="px-2.5 text-[11px] font-bold text-white/40 uppercase tracking-wide mb-2">Control center</p>
+          <div class="space-y-1">
+            @for (t of visibleTabs(); track t.id) {
+              <button
+                type="button"
+                (click)="tab.set(t.id)"
+                class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition text-left"
+                [class]="tab() === t.id ? 'bg-cream text-ink font-semibold' : 'text-white/70 hover:bg-white/10 hover:text-white'"
+              >
+                <span class="h-1.5 w-1.5 rounded-full shrink-0" [class]="tab() === t.id ? 'bg-brand-600' : 'bg-white/30'"></span>
+                {{ t.label }}
+              </button>
+            }
+          </div>
+        </nav>
+
+        <div class="px-5 py-4 border-t border-white/10 text-sm">
+          <button type="button" (click)="accountModal.open()" class="block text-white/70 hover:text-white mb-1">
+            Hi, {{ auth.currentUser()?.name }}
           </button>
-        }
-      </div>
+          <button type="button" (click)="logout()" class="font-semibold text-brand-300 hover:text-brand-200">Logout</button>
+        </div>
+      </aside>
 
-      @if (visibleTabs().length === 0) {
-        <p class="text-sub">You don't have any admin permissions assigned yet.</p>
-      }
+      <div class="flex-1 overflow-y-auto">
+        <div class="w-[94%] max-w-[1800px] mx-auto py-9">
+          <div class="mb-6">
+            <span class="text-xs font-bold text-brand-700 uppercase tracking-wide">{{ activeTabLabel() }} overview</span>
+            <h1 class="font-serif font-semibold text-3xl text-ink mt-1.5">
+              {{ auth.isSuperAdmin() ? 'Super Admin Dashboard' : auth.isEmployee() ? 'Employee Dashboard' : 'Admin Dashboard' }}
+            </h1>
+          </div>
 
-      @if (tab() === 'orders' && canSee('orders')) {
+          @if (visibleTabs().length === 0) {
+            <p class="text-sub">You don't have any admin permissions assigned yet.</p>
+          }
+
+          @if (tab() === 'orders' && canSee('orders')) {
+        <div class="inline-flex rounded-full border border-line p-1 mb-4">
+          @for (segment of checkoutSegments; track segment.value) {
+            <button
+              (click)="setCheckoutFilter(segment.value)"
+              class="px-3.5 py-1.5 rounded-full text-sm font-medium transition"
+              [class]="checkoutFilter() === segment.value ? 'bg-brand-600 text-white' : 'text-sub'"
+            >
+              {{ segment.label }}
+            </button>
+          }
+        </div>
+
         <form (ngSubmit)="searchOrders()" class="flex gap-3 mb-7">
           <input
             [(ngModel)]="orderSearch"
@@ -61,8 +95,8 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
         } @else {
           <div class="space-y-5">
             @for (order of orders(); track order.id) {
-              <div class="bg-white border border-line rounded-[18px] px-6 py-5 shadow-[0_4px_16px_rgba(46,38,32,0.05)]">
-                <div class="flex items-start justify-between flex-wrap gap-3 pb-4.5 border-b border-line mb-4.5">
+              <div class="bg-white border border-line rounded-[18px] overflow-hidden shadow-[0_4px_16px_rgba(46,38,32,0.05)]">
+                <div class="flex items-start justify-between flex-wrap gap-3 px-6 py-5">
                   <div>
                     <p class="font-serif font-semibold text-lg text-ink">Order #{{ order.id }}</p>
                     <p class="text-[12.5px] text-sub">
@@ -84,7 +118,7 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
                   </select>
                 </div>
 
-                <div class="grid sm:grid-cols-4 gap-4.5 pb-4.5 border-b border-line">
+                <div class="grid sm:grid-cols-4 gap-4.5 bg-cream px-6 py-4">
                   <div class="flex flex-col gap-1">
                     <p class="text-[11px] font-bold text-sub uppercase tracking-wide">Name</p>
                     <p class="text-sm font-semibold text-ink">{{ order.shipping_name }}</p>
@@ -103,9 +137,9 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
                   </div>
                 </div>
 
-                <div>
+                <div class="px-6">
                   @for (item of order.items; track item.id) {
-                    <div class="flex items-center gap-3.5 py-4 border-b border-line">
+                    <div class="flex items-center gap-3.5 py-4 border-b border-line last:border-0">
                       <div class="h-[52px] w-[52px] rounded-[10px] bg-cream overflow-hidden shrink-0 flex items-center justify-center ring-1 ring-line">
                         @if (item.product?.image_url || item.product_image) {
                           <img [src]="item.product?.image_url || item.product_image" [alt]="item.product?.name || item.product_name || ''" class="h-full w-full object-cover" />
@@ -127,20 +161,22 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
                   }
                 </div>
 
-                <div class="flex justify-between pt-3.5">
-                  <span class="text-[13.5px] font-semibold text-brand-700">Delivery charge{{ order.district?.name ? ' (' + order.district!.name + ')' : '' }}</span>
-                  <span class="text-[13.5px] font-semibold text-sub">{{ order.delivery_charge | currency:'BDT':'symbol':'1.0-0' }}</span>
-                </div>
-                <div class="flex justify-between mt-1.5">
-                  <span class="text-[15px] font-extrabold text-ink">Total</span>
-                  <span class="font-serif text-[17px] font-extrabold text-ink">{{ order.total | currency:'BDT':'symbol':'1.0-0' }}</span>
-                </div>
-                <div class="flex justify-between mt-1.5 text-[12.5px] text-sub">
-                  <span>Payment</span>
-                  <span>
-                    {{ order.payment_method === 'bkash' ? 'bKash' : 'Cash on Delivery' }}
-                    @if (order.payment_transaction_id) { &middot; TrxID {{ order.payment_transaction_id }} }
-                  </span>
+                <div class="bg-cream px-6 py-4">
+                  <div class="flex justify-between">
+                    <span class="text-[13.5px] font-semibold text-brand-700">Delivery charge{{ order.district?.name ? ' (' + order.district!.name + ')' : '' }}</span>
+                    <span class="text-[13.5px] font-semibold text-sub">{{ order.delivery_charge | currency:'BDT':'symbol':'1.0-0' }}</span>
+                  </div>
+                  <div class="flex justify-between mt-1.5">
+                    <span class="text-[15px] font-extrabold text-ink">Total</span>
+                    <span class="font-serif text-[17px] font-extrabold text-brand-600">{{ order.total | currency:'BDT':'symbol':'1.0-0' }}</span>
+                  </div>
+                  <div class="flex justify-between mt-2 pt-2 border-t border-line/70">
+                    <span class="text-[11px] font-bold text-sub uppercase tracking-wide">Payment</span>
+                    <span class="text-[12.5px] font-medium text-brand-700">
+                      {{ order.payment_method === 'bkash' ? 'bKash' : 'Cash on Delivery' }}
+                      @if (order.payment_transaction_id) { &middot; TrxID {{ order.payment_transaction_id }} }
+                    </span>
+                  </div>
                 </div>
               </div>
             }
@@ -478,7 +514,11 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
       @if (tab() === 'delivery' && canSee('delivery')) {
         <app-admin-delivery />
       }
+        </div>
+      </div>
     </div>
+
+    <app-my-account-modal #accountModal />
   `,
 })
 export class AdminDashboard {
@@ -487,6 +527,7 @@ export class AdminDashboard {
   private employeeService = inject(EmployeeService);
   private http = inject(HttpClient);
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
 
   private allTabs: { id: Tab; label: string }[] = [
     { id: 'orders', label: 'Orders' },
@@ -500,10 +541,17 @@ export class AdminDashboard {
   visibleTabs = computed(() => this.allTabs.filter((t) => this.canSee(t.id)));
 
   tab = signal<Tab>('orders');
+  activeTabLabel = computed(() => this.allTabs.find((t) => t.id === this.tab())?.label ?? '');
 
   orders = signal<Order[]>([]);
   loadingOrders = signal(true);
   orderSearch = '';
+  checkoutFilter = signal<'all' | 'guest' | 'account'>('all');
+  checkoutSegments: { value: 'all' | 'guest' | 'account'; label: string }[] = [
+    { value: 'all', label: 'All' },
+    { value: 'guest', label: 'Guest' },
+    { value: 'account', label: 'Account' },
+  ];
 
   users = signal<User[]>([]);
   loadingUsers = signal(true);
@@ -589,6 +637,10 @@ export class AdminDashboard {
     });
   }
 
+  logout() {
+    this.auth.logout().subscribe(() => this.router.navigateByUrl('/staff/login'));
+  }
+
   canSee(tab: Tab): boolean {
     // Role-gated, not permission-gated — an employee should never be able to reach the Users tab.
     if (tab === 'users') return this.auth.isAdmin();
@@ -609,7 +661,8 @@ export class AdminDashboard {
 
   private loadOrders() {
     this.loadingOrders.set(true);
-    this.orderService.adminOrders(this.orderSearch || undefined).subscribe({
+    const filter = this.checkoutFilter();
+    this.orderService.adminOrders(this.orderSearch || undefined, filter === 'all' ? undefined : filter).subscribe({
       next: (res) => {
         this.orders.set(res.data);
         this.loadingOrders.set(false);
@@ -619,6 +672,11 @@ export class AdminDashboard {
   }
 
   searchOrders() {
+    this.loadOrders();
+  }
+
+  setCheckoutFilter(value: 'all' | 'guest' | 'account') {
+    this.checkoutFilter.set(value);
     this.loadOrders();
   }
 

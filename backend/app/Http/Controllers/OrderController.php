@@ -53,6 +53,12 @@ class OrderController extends Controller
         return DB::transaction(function () use ($data, $customerId) {
             $district = District::findOrFail($data['district_id']);
 
+            if ($district->name !== 'Dhaka' && $data['payment_method'] === 'cod') {
+                throw ValidationException::withMessages([
+                    'payment_method' => ['Cash on Delivery is only available within Dhaka. For delivery outside Dhaka, please pay in full via bKash.'],
+                ]);
+            }
+
             $productIds = collect($data['items'])->pluck('product_id');
             $products = Product::whereIn('id', $productIds)->lockForUpdate()->get()->keyBy('id');
 
@@ -126,6 +132,43 @@ class OrderController extends Controller
         });
     }
 
+    public function track(Request $request)
+    {
+        // Order number is optional — a guest who lost it can still look up every
+        // order tied to their phone number; giving it just narrows to one.
+        $data = $request->validate([
+            'order_id' => ['nullable', 'integer'],
+            'phone' => ['required', 'string'],
+        ]);
+
+        $normalizedPhone = $this->normalizePhone($data['phone']);
+
+        // Guest lookup only — an order tied to a registered customer account should only be
+        // visible by logging in. Otherwise anyone who knows a customer's phone number could
+        // see their full order history without ever knowing their password.
+        $query = Order::whereNull('customer_id')->whereRaw(
+            "RIGHT(REPLACE(REPLACE(REPLACE(shipping_phone, '+', ''), ' ', ''), '-', ''), 10) = ?",
+            [$normalizedPhone]
+        );
+
+        if (! empty($data['order_id'])) {
+            $query->where('id', $data['order_id']);
+        }
+
+        $orders = $query->with('items.product', 'items.variant', 'district')->latest()->get();
+
+        abort_if($orders->isEmpty(), 404, 'No orders found for that phone number.');
+
+        return response()->json($orders);
+    }
+
+    // BD mobile numbers get typed with/without a leading 0 or +880/880 country code
+    // interchangeably; compare on the bare 10-digit subscriber number so all forms match.
+    private function normalizePhone(string $phone): string
+    {
+        return substr(preg_replace('/\D/', '', $phone), -10);
+    }
+
     public function myOrders(Request $request)
     {
         return $request->user()->orders()->with('items.product', 'items.variant', 'district')->latest()->paginate(10);
@@ -152,6 +195,14 @@ class OrderController extends Controller
                     ->orWhere('shipping_address', 'like', "%{$search}%")
                     ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', "%{$search}%"));
             });
+        }
+
+        if ($checkoutType = $request->query('checkout_type')) {
+            if ($checkoutType === 'guest') {
+                $query->whereNull('customer_id');
+            } elseif ($checkoutType === 'account') {
+                $query->whereNotNull('customer_id');
+            }
         }
 
         return $query->latest()->paginate(10);
