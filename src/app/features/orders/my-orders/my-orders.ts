@@ -3,17 +3,19 @@ import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { OrderService } from '../../../core/services/order.service';
 import { Order, OrderStatus } from '../../../core/models';
+import { Loader } from '../../../shared/loader/loader';
 
 @Component({
   selector: 'app-my-orders',
-  imports: [CurrencyPipe, DatePipe, RouterLink],
+  imports: [CurrencyPipe, DatePipe, RouterLink, Loader],
   template: `
+    @if (loading()) {
+      <app-loader />
+    } @else {
     <div class="max-w-4xl mx-auto px-4 py-8">
       <h1 class="text-2xl font-bold text-gray-900 mb-6">My Orders</h1>
 
-      @if (loading()) {
-        <p class="text-gray-500">Loading orders...</p>
-      } @else if (orders().length === 0) {
+      @if (orders().length === 0) {
         <div class="text-center py-16 bg-white border border-gray-200 rounded-2xl">
           <p class="text-gray-500 mb-4">You haven't placed any orders yet.</p>
           <a routerLink="/products" class="text-brand-600 font-medium hover:underline">Browse products</a>
@@ -84,6 +86,7 @@ import { Order, OrderStatus } from '../../../core/models';
         </div>
       }
     </div>
+    }
   `,
 })
 export class MyOrders {

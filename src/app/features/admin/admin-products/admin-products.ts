@@ -6,12 +6,13 @@ import { BannerService } from '../../../core/services/banner.service';
 import { CategoryService } from '../../../core/services/category.service';
 import { ProductService } from '../../../core/services/product.service';
 import { Banner, Category, Product } from '../../../core/models';
+import { Loader } from '../../../shared/loader/loader';
 
 const MAX_BANNERS = 4;
 
 @Component({
   selector: 'app-admin-products',
-  imports: [CurrencyPipe, FormsModule, RouterLink],
+  imports: [CurrencyPipe, FormsModule, RouterLink, Loader],
   template: `
     <div class="bg-white border border-line rounded-2xl p-6 mb-6 flex items-center justify-between gap-4 flex-wrap">
       <div>
@@ -155,7 +156,7 @@ const MAX_BANNERS = 4;
       </div>
 
       @if (loading()) {
-        <p class="text-sub text-sm p-6">Loading...</p>
+        <app-loader [fullscreen]="false" />
       } @else if (products().length === 0) {
         <p class="text-sub text-sm p-6">No products found.</p>
       } @else {

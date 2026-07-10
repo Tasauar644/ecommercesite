@@ -3,10 +3,11 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CustomerService } from '../../../core/services/customer.service';
 import { Customer, Order, OrderStatus } from '../../../core/models';
+import { Loader } from '../../../shared/loader/loader';
 
 @Component({
   selector: 'app-admin-customers',
-  imports: [CurrencyPipe, DatePipe, FormsModule],
+  imports: [CurrencyPipe, DatePipe, FormsModule, Loader],
   template: `
     <div class="grid md:grid-cols-5 gap-6">
       <div class="md:col-span-2 bg-white border border-line rounded-2xl overflow-hidden flex flex-col max-h-[75vh]">
@@ -25,7 +26,7 @@ import { Customer, Order, OrderStatus } from '../../../core/models';
 
         <div class="overflow-y-auto">
           @if (loading()) {
-            <p class="text-sub text-sm p-6">Loading...</p>
+            <app-loader [fullscreen]="false" [compact]="true" />
           } @else if (customers().length === 0) {
             <p class="text-sub text-sm p-6">No customers found.</p>
           } @else {
@@ -67,7 +68,7 @@ import { Customer, Order, OrderStatus } from '../../../core/models';
         @if (!selected()) {
           <p class="text-sub text-sm p-6">Select a customer to view their order history.</p>
         } @else if (loadingOrders()) {
-          <p class="text-sub text-sm p-6">Loading order history...</p>
+          <app-loader [fullscreen]="false" [compact]="true" />
         } @else {
           <div class="px-6 pt-6 shrink-0">
             <div class="flex items-center gap-3 mb-5">

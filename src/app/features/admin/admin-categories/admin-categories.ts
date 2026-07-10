@@ -2,10 +2,11 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CategoryService } from '../../../core/services/category.service';
 import { Category } from '../../../core/models';
+import { Loader } from '../../../shared/loader/loader';
 
 @Component({
   selector: 'app-admin-categories',
-  imports: [FormsModule],
+  imports: [FormsModule, Loader],
   template: `
     <div class="bg-white border border-line rounded-2xl p-7">
       <h2 class="font-serif font-semibold text-xl text-ink mb-4">Categories</h2>
@@ -34,7 +35,7 @@ import { Category } from '../../../core/models';
       />
 
       @if (loading()) {
-        <p class="text-sub text-sm">Loading...</p>
+        <app-loader [fullscreen]="false" />
       } @else if (filteredCategories().length === 0) {
         <p class="text-sub text-sm">No categories match.</p>
       } @else {

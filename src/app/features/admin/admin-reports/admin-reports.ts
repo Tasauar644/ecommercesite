@@ -6,6 +6,7 @@ import * as am5percent from '@amcharts/amcharts5/percent';
 import am5themes_Animated from '@amcharts/amcharts5/themes/Animated';
 import { CategorySales, ReportProduct, ReportsData, ReportService } from '../../../core/services/report.service';
 import { OrderStatus } from '../../../core/models';
+import { Loader } from '../../../shared/loader/loader';
 
 const STATUS_ORDER: OrderStatus[] = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 const STATUS_LABEL: Record<OrderStatus, string> = {
@@ -30,7 +31,7 @@ const CATEGORY_COLORS = ['#2a78d6', '#1baf7a', '#eda100', '#008300', '#4a3aa7'];
 
 @Component({
   selector: 'app-admin-reports',
-  imports: [CurrencyPipe],
+  imports: [CurrencyPipe, Loader],
   template: `
     <div class="space-y-6">
       <div class="inline-flex rounded-full border border-line p-1">
@@ -47,7 +48,9 @@ const CATEGORY_COLORS = ['#2a78d6', '#1baf7a', '#eda100', '#008300', '#4a3aa7'];
       </div>
 
       <div [class.hidden]="view() !== 'overview'" class="space-y-6">
-        @if (data(); as d) {
+        @if (loading()) {
+          <app-loader [fullscreen]="false" />
+        } @else if (data(); as d) {
           <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <div class="bg-white border border-line rounded-2xl p-4">
               <p class="text-xs font-bold text-sub uppercase tracking-wide">Today</p>
@@ -210,7 +213,7 @@ const CATEGORY_COLORS = ['#2a78d6', '#1baf7a', '#eda100', '#008300', '#4a3aa7'];
           </div>
 
           @if (productsLoading()) {
-            <p class="text-sub text-sm">Loading...</p>
+            <app-loader [fullscreen]="false" [compact]="true" />
           } @else if (filteredProducts().length === 0) {
             <p class="text-sub text-sm">No sales in this range yet.</p>
           } @else {

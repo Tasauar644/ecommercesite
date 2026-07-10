@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CategoryService } from '../../../core/services/category.service';
 import { ProductService } from '../../../core/services/product.service';
 import { Category, ProductImage } from '../../../core/models';
+import { Loader } from '../../../shared/loader/loader';
 
 const MAX_IMAGES = 3;
 const MAX_VARIANTS = 3;
@@ -23,7 +24,7 @@ interface VariantRow {
 
 @Component({
   selector: 'app-product-form',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, Loader],
   template: `
     <div class="max-w-2xl mx-auto px-4 py-8">
       <a routerLink="/admin" [queryParams]="{ tab: 'products' }" class="text-sm font-semibold text-brand-700 hover:text-brand-600">&larr; Back to dashboard</a>
@@ -39,7 +40,7 @@ interface VariantRow {
           <div class="mb-4 rounded-lg bg-red-50 text-red-700 text-sm px-3 py-2">{{ error() }}</div>
         }
         @if (loading()) {
-          <p class="text-sub">Loading...</p>
+          <app-loader />
         } @else {
           <form (ngSubmit)="submit()" class="space-y-5">
             <div>

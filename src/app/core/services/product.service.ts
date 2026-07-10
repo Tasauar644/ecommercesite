@@ -26,6 +26,10 @@ export class ProductService {
     return this.http.get<Product>(`${this.base}/${id}`);
   }
 
+  recommendations(id: number) {
+    return this.http.get<Product[]>(`${this.base}/${id}/recommendations`);
+  }
+
   adminList(categoryId?: number, search?: string, bestSellerOnly?: boolean) {
     const params: Record<string, string> = {};
     if (categoryId) params['category_id'] = String(categoryId);

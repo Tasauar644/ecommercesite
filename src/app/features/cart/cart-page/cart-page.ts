@@ -53,7 +53,7 @@ import { CartItem } from '../../../core/models';
 
               <p class="w-20 text-right font-medium text-gray-900">{{ item.quantity * +(item.variant?.price ?? item.product.price) | currency:'BDT':'symbol':'1.0-0' }}</p>
 
-              <button (click)="cart.remove(item.product.id, item.variant?.id)" class="text-gray-400 hover:text-red-600" aria-label="Remove">
+              <button (click)="removeItem(item)" class="text-gray-400 hover:text-red-600" aria-label="Remove">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -94,5 +94,9 @@ export class CartPage {
   updateQuantity(item: CartItem, event: Event) {
     const value = Number((event.target as HTMLInputElement).value);
     this.cart.updateQuantity(item.product.id, Math.max(1, value || 1), item.variant?.id);
+  }
+
+  removeItem(item: CartItem) {
+    this.cart.remove(item.product.id, item.variant?.id);
   }
 }

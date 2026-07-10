@@ -4,10 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
 import { DeliveryZone, DistrictService } from '../../../core/services/district.service';
 import { PaymentSettingService } from '../../../core/services/payment-setting.service';
+import { Loader } from '../../../shared/loader/loader';
 
 @Component({
   selector: 'app-admin-delivery',
-  imports: [CurrencyPipe, FormsModule],
+  imports: [CurrencyPipe, FormsModule, Loader],
   template: `
     <div class="bg-white border border-line rounded-2xl p-6">
       <h2 class="font-serif font-semibold text-lg text-ink mb-1">Delivery Charges</h2>
@@ -18,7 +19,7 @@ import { PaymentSettingService } from '../../../core/services/payment-setting.se
       }
 
       @if (loading()) {
-        <p class="text-sub text-sm">Loading...</p>
+        <app-loader [fullscreen]="false" [compact]="true" />
       } @else {
         <ul class="divide-y divide-line">
           @for (z of zones(); track z.zone) {
@@ -62,7 +63,7 @@ import { PaymentSettingService } from '../../../core/services/payment-setting.se
         }
 
         @if (loadingPayment()) {
-          <p class="text-sub text-sm">Loading...</p>
+          <app-loader [fullscreen]="false" [compact]="true" />
         } @else {
           <div class="flex items-center gap-3">
             <input

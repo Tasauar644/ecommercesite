@@ -7,12 +7,13 @@ import { CategoryService } from '../../../core/services/category.service';
 import { ProductService } from '../../../core/services/product.service';
 import { SmartSearchInterpreted, SmartSearchService } from '../../../core/services/smart-search.service';
 import { Category, Product } from '../../../core/models';
+import { Loader } from '../../../shared/loader/loader';
 import { HeroCarousel } from '../hero-carousel/hero-carousel';
 import { ProductCard } from '../product-card/product-card';
 
 @Component({
   selector: 'app-product-list',
-  imports: [ProductCard, FormsModule, HeroCarousel, NgTemplateOutlet],
+  imports: [ProductCard, FormsModule, HeroCarousel, NgTemplateOutlet, Loader],
   template: `
     <div class="w-[92%] max-w-[2200px] mx-auto py-8">
       @if (!search()) {
@@ -146,8 +147,10 @@ import { ProductCard } from '../product-card/product-card';
         </aside>
 
         <div class="flex-1 min-w-0">
-          @if (loading() || aiSearching()) {
-            <p class="text-gray-500">Loading products...</p>
+          @if (loading()) {
+            <app-loader />
+          } @else if (aiSearching()) {
+            <p class="text-gray-500">Asking AI...</p>
           } @else if (displayProducts(); as shownProducts) {
             @if (shownProducts.length === 0) {
               <p class="text-gray-500">No products found.</p>

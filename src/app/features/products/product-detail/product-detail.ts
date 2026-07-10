@@ -5,13 +5,14 @@ import { AuthService } from '../../../core/services/auth.service';
 import { CartService } from '../../../core/services/cart.service';
 import { ProductService } from '../../../core/services/product.service';
 import { Product, ProductVariant } from '../../../core/models';
+import { Loader } from '../../../shared/loader/loader';
 import { ProductCard } from '../product-card/product-card';
 
 const RELATED_COUNT = 4;
 
 @Component({
   selector: 'app-product-detail',
-  imports: [CurrencyPipe, RouterLink, ProductCard],
+  imports: [CurrencyPipe, RouterLink, ProductCard, Loader],
   template: `
     @if (product(); as product) {
       <div class="w-[92%] max-w-[2200px] mx-auto py-8">
@@ -128,7 +129,12 @@ const RELATED_COUNT = 4;
           </div>
         </div>
 
-        @if (relatedProducts().length > 0) {
+        @if (relatedLoading()) {
+          <div class="mt-16">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">You may also like</h2>
+            <app-loader [fullscreen]="false" [compact]="true" />
+          </div>
+        } @else if (relatedProducts().length > 0) {
           <div class="mt-16">
             <h2 class="text-xl font-bold text-gray-900 mb-4">You may also like</h2>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
@@ -140,7 +146,7 @@ const RELATED_COUNT = 4;
         }
       </div>
     } @else if (loading()) {
-      <p class="text-center text-gray-500 py-16">Loading...</p>
+      <app-loader />
     } @else {
       <p class="text-center text-gray-500 py-16">Product not found.</p>
     }
@@ -156,6 +162,7 @@ export class ProductDetail {
   loading = signal(true);
   quantity = signal(1);
   relatedProducts = signal<Product[]>([]);
+  relatedLoading = signal(false);
   imageIndex = signal(0);
   selectedVariant = signal<ProductVariant | null>(null);
 
@@ -178,6 +185,7 @@ export class ProductDetail {
       this.loading.set(true);
       this.product.set(null);
       this.relatedProducts.set([]);
+      this.relatedLoading.set(false);
       this.imageIndex.set(0);
       this.quantity.set(1);
       this.selectedVariant.set(null);
@@ -201,25 +209,16 @@ export class ProductDetail {
   }
 
   private loadRelated(product: Product) {
-    const withoutCurrent = (products: Product[]) => products.filter((p) => p.id !== product.id);
-
-    const request = product.category_id
-      ? this.productService.list(undefined, product.category_id)
-      : this.productService.list();
-
-    request.subscribe((res) => {
-      const fromCategory = withoutCurrent(res.data).slice(0, RELATED_COUNT);
-
-      if (fromCategory.length >= RELATED_COUNT || !product.category_id) {
-        this.relatedProducts.set(fromCategory);
-        return;
-      }
-
-      this.productService.list().subscribe((res2) => {
-        const seenIds = new Set([product.id, ...fromCategory.map((p) => p.id)]);
-        const fillers = withoutCurrent(res2.data).filter((p) => !seenIds.has(p.id));
-        this.relatedProducts.set([...fromCategory, ...fillers].slice(0, RELATED_COUNT));
-      });
+    this.relatedLoading.set(true);
+    this.productService.recommendations(product.id).subscribe({
+      next: (products) => {
+        this.relatedProducts.set(products.slice(0, RELATED_COUNT));
+        this.relatedLoading.set(false);
+      },
+      error: () => {
+        this.relatedProducts.set([]);
+        this.relatedLoading.set(false);
+      },
     });
   }
 

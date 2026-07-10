@@ -11,6 +11,7 @@ import { OrderService } from '../../../core/services/order.service';
 import { ProductService } from '../../../core/services/product.service';
 import { ALL_PERMISSIONS, District, Order, OrderStatus, Paginated, Permission, Product, Role, User } from '../../../core/models';
 import { MyAccountModal } from '../../../shared/my-account-modal/my-account-modal';
+import { Loader } from '../../../shared/loader/loader';
 import { AdminCategories } from '../admin-categories/admin-categories';
 import { AdminCustomers } from '../admin-customers/admin-customers';
 import { AdminDelivery } from '../admin-delivery/admin-delivery';
@@ -21,7 +22,7 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
 
 @Component({
   selector: 'app-admin-dashboard',
-  imports: [CurrencyPipe, DatePipe, FormsModule, RouterLink, MyAccountModal, AdminProducts, AdminCategories, AdminCustomers, AdminDelivery, AdminReports],
+  imports: [CurrencyPipe, DatePipe, FormsModule, RouterLink, MyAccountModal, AdminProducts, AdminCategories, AdminCustomers, AdminDelivery, AdminReports, Loader],
   template: `
     <div class="flex h-full">
       <aside class="w-64 shrink-0 bg-ink text-white flex flex-col h-full">
@@ -92,7 +93,7 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
         </form>
 
         @if (loadingOrders()) {
-          <p class="text-sub">Loading orders...</p>
+          <app-loader [fullscreen]="false" />
         } @else if (orders().length === 0) {
           <p class="text-sub">No orders yet.</p>
         } @else {
@@ -231,7 +232,7 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
         }
 
         @if (loadingUsers()) {
-          <p class="text-sub">Loading users...</p>
+          <app-loader [fullscreen]="false" />
         } @else if (filteredUsers().length === 0) {
           <p class="text-sub">No users in this filter.</p>
         } @else {
