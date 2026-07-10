@@ -9,11 +9,16 @@ export class ProductService {
   private base = `${environment.apiUrl}/products`;
   private adminBase = `${environment.apiUrl}/admin/products`;
 
-  list(search?: string, categoryId?: number, page?: number) {
+  list(search?: string, categoryId?: number | number[], page?: number, minPrice?: number, maxPrice?: number) {
     const params: Record<string, string> = {};
     if (search) params['search'] = search;
-    if (categoryId) params['category_id'] = String(categoryId);
+    if (categoryId !== undefined) {
+      const ids = Array.isArray(categoryId) ? categoryId : [categoryId];
+      if (ids.length) params['category_id'] = ids.join(',');
+    }
     if (page) params['page'] = String(page);
+    if (minPrice !== undefined) params['min_price'] = String(minPrice);
+    if (maxPrice !== undefined) params['max_price'] = String(maxPrice);
     return this.http.get<Paginated<Product>>(this.base, { params });
   }
 
@@ -38,5 +43,13 @@ export class ProductService {
 
   adminDelete(id: number) {
     return this.http.delete(`${this.adminBase}/${id}`);
+  }
+
+  getBestSellerSettings() {
+    return this.http.get<{ auto_enabled: boolean }>(`${environment.apiUrl}/admin/best-seller-settings`);
+  }
+
+  updateBestSellerSettings(autoEnabled: boolean) {
+    return this.http.post<{ auto_enabled: boolean }>(`${environment.apiUrl}/admin/best-seller-settings`, { auto_enabled: autoEnabled });
   }
 }

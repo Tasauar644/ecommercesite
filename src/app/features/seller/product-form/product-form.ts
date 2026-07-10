@@ -95,6 +95,17 @@ interface VariantRow {
               <label for="hasVariants" class="text-sm font-medium text-ink">This product comes in different colors</label>
             </div>
 
+            <div class="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="isBestSeller"
+                [(ngModel)]="isBestSeller"
+                name="isBestSeller"
+                class="h-4 w-4 rounded accent-brand-600"
+              />
+              <label for="isBestSeller" class="text-sm font-medium text-ink">Mark as Best Seller <span class="text-sub font-normal">(shows a glowing badge on the storefront)</span></label>
+            </div>
+
             @if (!hasVariants()) {
               <div class="grid grid-cols-2 gap-4">
                 <div>
@@ -317,6 +328,7 @@ export class ProductForm {
   quantity: number | null = null;
   categoryId: number | null = null;
   categories = signal<Category[]>([]);
+  isBestSeller = false;
 
   existingImages = signal<ProductImage[]>([]);
   removedImageIds = signal<number[]>([]);
@@ -349,6 +361,7 @@ export class ProductForm {
           this.price = Number(product.price);
           this.quantity = product.quantity;
           this.categoryId = product.category_id;
+          this.isBestSeller = product.is_best_seller ?? false;
           this.existingImages.set(product.images ?? []);
 
           if (product.variants?.length) {
@@ -458,6 +471,7 @@ export class ProductForm {
     formData.append('name', this.name);
     formData.append('description', this.description ?? '');
     formData.append('category_id', String(this.categoryId));
+    formData.append('is_best_seller', this.isBestSeller ? '1' : '0');
 
     if (this.hasVariants()) {
       if (this.variants.length === 0) {

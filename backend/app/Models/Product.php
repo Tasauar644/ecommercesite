@@ -15,6 +15,7 @@ class Product extends Model
         'price',
         'quantity',
         'image_path',
+        'is_best_seller',
     ];
 
     protected function casts(): array
@@ -22,6 +23,7 @@ class Product extends Model
         return [
             'price' => 'decimal:2',
             'quantity' => 'integer',
+            'is_best_seller' => 'boolean',
         ];
     }
 
@@ -79,5 +81,23 @@ class Product extends Model
     public function variants()
     {
         return $this->hasMany(ProductVariant::class);
+    }
+
+    /**
+     * Product ids with the most units sold today (excluding cancelled orders),
+     * highest first. Used to auto-highlight a "Best Seller Today" badge when
+     * that mode is enabled — separate from the manual is_best_seller flag.
+     */
+    public static function autoBestSellerIds(int $limit = 1): array
+    {
+        return OrderItem::query()
+            ->selectRaw('product_id, SUM(quantity) as sold')
+            ->whereNotNull('product_id')
+            ->whereHas('order', fn ($q) => $q->whereDate('created_at', now()->toDateString())->where('status', '!=', 'cancelled'))
+            ->groupBy('product_id')
+            ->orderByDesc('sold')
+            ->limit($limit)
+            ->pluck('product_id')
+            ->all();
     }
 }

@@ -8,7 +8,18 @@ import { Product } from '../../../core/models';
   selector: 'app-product-card',
   imports: [RouterLink, CurrencyPipe],
   template: `
-    <div class="group bg-white border border-line rounded-2xl overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all flex flex-col">
+    <div
+      class="group relative bg-white rounded-2xl overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all flex flex-col"
+      [class]="product.is_best_seller ? 'border-2 border-brand-600 animate-[best-seller-glow_2.2s_ease-in-out_infinite]' : 'border border-line'"
+    >
+      @if (product.is_best_seller) {
+        <span class="absolute top-2.5 left-2.5 z-20 flex items-center gap-1 bg-brand-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-full shadow-[0_6px_14px_rgba(181,88,58,0.4)] pointer-events-none animate-[best-seller-badge-pop_0.5s_cubic-bezier(0.34,1.56,0.64,1)_both]">
+          🔥 Best Seller Today
+        </span>
+        <div class="absolute inset-0 overflow-hidden pointer-events-none z-10">
+          <div class="absolute -top-[20%] left-0 w-[35%] h-[140%] bg-gradient-to-r from-transparent via-white/55 to-transparent animate-[best-seller-shimmer_2.8s_ease-in-out_infinite]"></div>
+        </div>
+      }
       <a [routerLink]="['/products', product.id]" class="relative block aspect-square bg-gray-100 overflow-hidden">
         @if (images().length > 0) {
           <img [src]="images()[currentIndex()]" [alt]="product.name" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\District;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use Illuminate\Http\Request;
@@ -206,6 +207,106 @@ class OrderController extends Controller
         }
 
         return $query->latest()->paginate(10);
+    }
+
+    // Admin correction: shipping details and/or line items on an existing order.
+    // Item quantity changes reconcile stock (increase = take more from stock,
+    // decrease = give it back); removed items restock in full. Price edits
+    // (unit_price) never touch stock. Total is always recomputed server-side.
+    public function update(Request $request, Order $order)
+    {
+        $user = $request->user();
+
+        if ($user->role === 'employee') {
+            abort_unless($order->items()->where('seller_id', $user->id)->exists(), 403, 'Forbidden');
+        } elseif (! in_array($user->role, ['admin', 'superadmin'], true)) {
+            abort(403, 'Forbidden');
+        }
+
+        $data = $request->validate([
+            'shipping_name' => ['sometimes', 'required', 'string', 'max:255'],
+            'shipping_phone' => ['sometimes', 'required', 'string', 'max:30'],
+            'shipping_address' => ['sometimes', 'required', 'string', 'max:255'],
+            'district_id' => ['sometimes', 'required', 'integer', 'exists:districts,id'],
+            'items' => ['sometimes', 'array'],
+            'items.*.id' => ['required_with:items', 'integer', 'exists:order_items,id'],
+            'items.*.quantity' => ['required_with:items', 'integer', 'min:1'],
+            'items.*.unit_price' => ['required_with:items', 'numeric', 'min:0'],
+            'remove_item_ids' => ['sometimes', 'array'],
+            'remove_item_ids.*' => ['integer', 'exists:order_items,id'],
+        ]);
+
+        DB::transaction(function () use ($order, $data) {
+            foreach (['shipping_name', 'shipping_phone', 'shipping_address'] as $field) {
+                if (array_key_exists($field, $data)) {
+                    $order->$field = $data[$field];
+                }
+            }
+
+            if (array_key_exists('district_id', $data) && (int) $data['district_id'] !== $order->district_id) {
+                $district = District::findOrFail($data['district_id']);
+                $order->district_id = $district->id;
+                $order->delivery_charge = $district->delivery_charge;
+            }
+
+            foreach ($data['remove_item_ids'] ?? [] as $itemId) {
+                $item = $order->items()->whereKey($itemId)->lockForUpdate()->first();
+                if (! $item) {
+                    continue;
+                }
+                $this->adjustStock($item, $item->quantity);
+                $item->delete();
+            }
+
+            foreach ($data['items'] ?? [] as $itemData) {
+                $item = $order->items()->whereKey($itemData['id'])->lockForUpdate()->first();
+                if (! $item) {
+                    continue;
+                }
+
+                $delta = $itemData['quantity'] - $item->quantity;
+                if ($delta !== 0) {
+                    $this->adjustStock($item, -$delta);
+                }
+
+                $item->quantity = $itemData['quantity'];
+                $item->unit_price = $itemData['unit_price'];
+                $item->save();
+            }
+
+            $subtotal = $order->items()->get()->sum(fn (OrderItem $i) => $i->quantity * $i->unit_price);
+            $order->total = $subtotal + $order->delivery_charge;
+            $order->save();
+        });
+
+        return response()->json($order->fresh()->load('items.product', 'items.variant', 'customer:id,name,phone,email', 'district'));
+    }
+
+    // stockChange is the amount to ADD to stock (negative = remove from stock,
+    // e.g. a quantity increase pulls more units out of inventory).
+    private function adjustStock(OrderItem $item, int $stockChange): void
+    {
+        if ($stockChange === 0) {
+            return;
+        }
+
+        if ($item->product_variant_id) {
+            $variant = ProductVariant::lockForUpdate()->find($item->product_variant_id);
+            if ($variant) {
+                if ($stockChange < 0 && $variant->quantity < abs($stockChange)) {
+                    throw ValidationException::withMessages(['items' => ["Not enough stock left for \"{$item->product_name}\" to increase this quantity."]]);
+                }
+                $variant->increment('quantity', $stockChange);
+            }
+        }
+
+        $product = Product::lockForUpdate()->find($item->product_id);
+        if ($product) {
+            if ($stockChange < 0 && $product->quantity < abs($stockChange)) {
+                throw ValidationException::withMessages(['items' => ["Not enough stock left for \"{$item->product_name}\" to increase this quantity."]]);
+            }
+            $product->increment('quantity', $stockChange);
+        }
     }
 
     public function updateStatus(Request $request, Order $order)

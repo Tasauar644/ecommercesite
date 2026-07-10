@@ -73,6 +73,7 @@ export interface Product {
   quantity: number;
   image_url: string | null;
   images: ProductImage[];
+  is_best_seller?: boolean;
   variants?: ProductVariant[];
   seller?: { id: number; name: string };
   category?: { id: number; name: string };

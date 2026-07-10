@@ -5,9 +5,10 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { environment } from '../../../../environments/environment';
 import { AuthService } from '../../../core/services/auth.service';
+import { DistrictService } from '../../../core/services/district.service';
 import { EmployeeService } from '../../../core/services/employee.service';
 import { OrderService } from '../../../core/services/order.service';
-import { ALL_PERMISSIONS, Order, OrderStatus, Paginated, Permission, Role, User } from '../../../core/models';
+import { ALL_PERMISSIONS, District, Order, OrderStatus, Paginated, Permission, Role, User } from '../../../core/models';
 import { MyAccountModal } from '../../../shared/my-account-modal/my-account-modal';
 import { AdminCategories } from '../admin-categories/admin-categories';
 import { AdminCustomers } from '../admin-customers/admin-customers';
@@ -104,18 +105,27 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
                       {{ order.customer ? 'Account: ' + order.customer.name : 'Guest checkout' }}
                     </p>
                   </div>
-                  <select
-                    [ngModel]="order.status"
-                    (ngModelChange)="updateStatus(order, $event)"
-                    class="text-[13px] font-bold rounded-full border-0 pl-4 pr-8 py-1.5 capitalize focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    [class]="statusClasses(order.status)"
-                  >
-                    <option value="pending">pending</option>
-                    <option value="processing">processing</option>
-                    <option value="shipped">shipped</option>
-                    <option value="delivered">delivered</option>
-                    <option value="cancelled">cancelled</option>
-                  </select>
+                  <div class="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      (click)="openEditOrder(order)"
+                      class="text-[13px] font-bold text-brand-600 hover:underline"
+                    >
+                      Edit
+                    </button>
+                    <select
+                      [ngModel]="order.status"
+                      (ngModelChange)="updateStatus(order, $event)"
+                      class="text-[13px] font-bold rounded-full border-0 pl-4 pr-8 py-1.5 capitalize focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      [class]="statusClasses(order.status)"
+                    >
+                      <option value="pending">pending</option>
+                      <option value="processing">processing</option>
+                      <option value="shipped">shipped</option>
+                      <option value="delivered">delivered</option>
+                      <option value="cancelled">cancelled</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div class="grid sm:grid-cols-4 gap-4.5 bg-cream px-6 py-4">
@@ -287,8 +297,20 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
 
       @if (editingUser(); as editing) {
         <div class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" (click)="closeEdit()">
-          <div class="bg-white rounded-2xl p-6 w-full max-w-md" (click)="$event.stopPropagation()">
-            <h2 class="font-serif text-lg font-semibold text-ink mb-4">Edit {{ editing.name }}</h2>
+          <div class="bg-white rounded-2xl p-6 w-full max-w-md relative" (click)="$event.stopPropagation()">
+            <button
+              type="button"
+              (click)="closeEdit()"
+              aria-label="Close"
+              class="absolute top-4 right-4 h-8 w-8 rounded-full bg-cream hover:bg-line flex items-center justify-center text-sub transition"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+
+            <h2 class="font-serif text-lg font-semibold text-ink mb-4 pr-8">Edit {{ editing.name }}</h2>
 
               @if (editError()) {
                 <div class="mb-4 rounded-lg bg-red-50 text-red-700 text-sm px-3 py-2">{{ editError() }}</div>
@@ -324,32 +346,35 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-ink mb-1">Name</label>
-                  <input [(ngModel)]="editName" name="editName" required class="w-full rounded-lg border border-line px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                  <input [(ngModel)]="editName" name="editName" required class="w-full rounded-lg border border-line bg-cream px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500" />
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-ink mb-1">Phone</label>
-                  <input [(ngModel)]="editPhone" name="editPhone" required class="w-full rounded-lg border border-line px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                  <input [(ngModel)]="editPhone" name="editPhone" required class="w-full rounded-lg border border-line bg-cream px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500" />
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-ink mb-1">Email <span class="text-sub font-normal">(optional)</span></label>
-                  <input [(ngModel)]="editEmail" name="editEmail" type="email" class="w-full rounded-lg border border-line px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                  <input [(ngModel)]="editEmail" name="editEmail" type="email" class="w-full rounded-lg border border-line bg-cream px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500" />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-ink mb-1">Role</label>
-                  <select
-                    [(ngModel)]="editRole"
-                    name="editRole"
-                    [disabled]="editing.id === auth.currentUser()?.id || !auth.isSuperAdmin()"
-                    class="w-full rounded-lg border border-line px-3 py-2 disabled:bg-cream disabled:text-sub"
-                  >
-                    <option value="employee">Employee</option>
-                    <option value="admin">Admin</option>
-                    <option value="superadmin">Super Admin</option>
-                  </select>
+                  <label class="block text-sm font-medium text-ink mb-2">Role</label>
+                  <div class="grid grid-cols-3 gap-2">
+                    @for (r of roleOptions; track r.value) {
+                      <button
+                        type="button"
+                        [disabled]="editing.id === auth.currentUser()?.id || !auth.isSuperAdmin()"
+                        (click)="editRole = r.value"
+                        class="rounded-lg py-2.5 text-sm font-medium border transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        [class]="editRole === r.value ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-line text-ink hover:bg-cream'"
+                      >
+                        {{ r.label }}
+                      </button>
+                    }
+                  </div>
                   @if (editing.id === auth.currentUser()?.id) {
-                    <p class="text-xs text-sub mt-1">You can't change your own role.</p>
+                    <p class="text-xs text-sub mt-2">You can't change your own role.</p>
                   } @else if (!auth.isSuperAdmin()) {
-                    <p class="text-xs text-sub mt-1">Only superadmins can change roles.</p>
+                    <p class="text-xs text-sub mt-2">Only superadmins can change roles.</p>
                   }
                 </div>
 
@@ -369,6 +394,7 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
                             [checked]="editPermissions().includes(perm.value)"
                             [disabled]="editing.id === auth.currentUser()?.id"
                             (change)="toggleEditPermission(perm.value)"
+                            class="h-4 w-4 rounded accent-brand-600"
                           />
                           {{ perm.label }}
                         </label>
@@ -428,8 +454,21 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
 
       @if (addingEmployee()) {
         <div class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" (click)="closeAddEmployee()">
-          <div class="bg-white rounded-2xl p-6 w-full max-w-md" (click)="$event.stopPropagation()">
-            <h2 class="font-serif text-lg font-semibold text-ink mb-4">Add Staff</h2>
+          <div class="bg-white rounded-2xl p-6 w-full max-w-md relative" (click)="$event.stopPropagation()">
+            <button
+              type="button"
+              (click)="closeAddEmployee()"
+              aria-label="Close"
+              class="absolute top-4 right-4 h-8 w-8 rounded-full bg-cream hover:bg-line flex items-center justify-center text-sub transition"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+
+            <h2 class="font-serif text-lg font-semibold text-ink pr-8">Add staff member</h2>
+            <p class="text-sm text-brand-600/80 mt-1 mb-5">Grant a teammate access to the dashboard.</p>
 
             @if (addEmployeeError()) {
               <div class="mb-4 rounded-lg bg-red-50 text-red-700 text-sm px-3 py-2">{{ addEmployeeError() }}</div>
@@ -437,34 +476,42 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
 
             <form (ngSubmit)="submitAddEmployee()" class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-ink mb-1">Name</label>
-                <input [(ngModel)]="newEmployeeName" name="newEmployeeName" required class="w-full rounded-lg border border-line px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                <label class="block text-sm font-medium text-ink mb-1">Full name</label>
+                <input [(ngModel)]="newEmployeeName" name="newEmployeeName" required placeholder="Name" class="w-full rounded-lg border border-line bg-cream px-3.5 py-2.5 placeholder:text-sub/70 focus:outline-none focus:ring-2 focus:ring-brand-500" />
               </div>
               <div>
                 <label class="block text-sm font-medium text-ink mb-1">Username</label>
-                <input [(ngModel)]="newEmployeeUsername" name="newEmployeeUsername" required class="w-full rounded-lg border border-line px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                <input [(ngModel)]="newEmployeeUsername" name="newEmployeeUsername" required placeholder="e.g. sadia.rahman" class="w-full rounded-lg border border-line bg-cream px-3.5 py-2.5 placeholder:text-sub/70 focus:outline-none focus:ring-2 focus:ring-brand-500" />
               </div>
               <div>
                 <label class="block text-sm font-medium text-ink mb-1">Phone</label>
-                <input [(ngModel)]="newEmployeePhone" name="newEmployeePhone" type="tel" required class="w-full rounded-lg border border-line px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                <input [(ngModel)]="newEmployeePhone" name="newEmployeePhone" type="tel" required placeholder="e.g. 01XXXXXXXXX" class="w-full rounded-lg border border-line bg-cream px-3.5 py-2.5 placeholder:text-sub/70 focus:outline-none focus:ring-2 focus:ring-brand-500" />
               </div>
               <div>
                 <label class="block text-sm font-medium text-ink mb-1">Email <span class="text-sub font-normal">(optional)</span></label>
-                <input [(ngModel)]="newEmployeeEmail" name="newEmployeeEmail" type="email" class="w-full rounded-lg border border-line px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                <input [(ngModel)]="newEmployeeEmail" name="newEmployeeEmail" type="email" placeholder="name@example.com" class="w-full rounded-lg border border-line bg-cream px-3.5 py-2.5 placeholder:text-sub/70 focus:outline-none focus:ring-2 focus:ring-brand-500" />
               </div>
               <div>
                 <label class="block text-sm font-medium text-ink mb-1">Password</label>
-                <input [(ngModel)]="newEmployeePassword" name="newEmployeePassword" type="password" required minlength="8" class="w-full rounded-lg border border-line px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                <input [(ngModel)]="newEmployeePassword" name="newEmployeePassword" type="password" required minlength="8" placeholder="At least 8 characters" class="w-full rounded-lg border border-line bg-cream px-3.5 py-2.5 placeholder:text-sub/70 focus:outline-none focus:ring-2 focus:ring-brand-500" />
               </div>
+
               <div>
-                <label class="block text-sm font-medium text-ink mb-1">Role</label>
-                <select [(ngModel)]="newEmployeeRole" name="newEmployeeRole" class="w-full rounded-lg border border-line px-3 py-2">
-                  <option value="employee">Employee (scoped permissions)</option>
-                  <option value="admin">Admin (full access)</option>
-                  <option value="superadmin">Super Admin (full access)</option>
-                </select>
+                <label class="block text-sm font-medium text-ink mb-2">Role</label>
+                <div class="grid grid-cols-3 gap-2">
+                  @for (r of roleOptions; track r.value) {
+                    <button
+                      type="button"
+                      (click)="newEmployeeRole = r.value"
+                      class="rounded-lg py-2.5 text-sm font-medium border transition"
+                      [class]="newEmployeeRole === r.value ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-line text-ink hover:bg-cream'"
+                    >
+                      {{ r.label }}
+                    </button>
+                  }
+                </div>
                 @if (newEmployeeRole === 'admin' || newEmployeeRole === 'superadmin') {
-                  <p class="text-xs text-sub mt-1">Admins and superadmins have full access to every section automatically.</p>
+                  <p class="text-xs text-sub mt-2">Admins and superadmins have full access to every section automatically.</p>
                 }
               </div>
 
@@ -474,7 +521,7 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
                   <div class="space-y-2">
                     @for (perm of allPermissions; track perm.value) {
                       <label class="flex items-center gap-2 text-sm text-ink">
-                        <input type="checkbox" [checked]="newEmployeePermissions().includes(perm.value)" (change)="toggleNewEmployeePermission(perm.value)" />
+                        <input type="checkbox" [checked]="newEmployeePermissions().includes(perm.value)" (change)="toggleNewEmployeePermission(perm.value)" class="h-4 w-4 rounded accent-brand-600" />
                         {{ perm.label }}
                       </label>
                     }
@@ -482,16 +529,119 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
                 </div>
               }
 
+              <button
+                type="submit"
+                [disabled]="savingNewEmployee()"
+                class="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white font-medium rounded-lg py-3 transition"
+              >
+                {{ savingNewEmployee() ? 'Adding...' : 'Add staff member' }}
+              </button>
+            </form>
+          </div>
+        </div>
+      }
+
+      @if (editingOrder(); as eo) {
+        <div class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" (click)="closeEditOrder()">
+          <div class="bg-white rounded-2xl p-6 w-full max-w-lg relative max-h-[90vh] overflow-y-auto" (click)="$event.stopPropagation()">
+            <button
+              type="button"
+              (click)="closeEditOrder()"
+              aria-label="Close"
+              class="absolute top-4 right-4 h-8 w-8 rounded-full bg-cream hover:bg-line flex items-center justify-center text-sub transition"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+
+            <h2 class="font-serif text-lg font-semibold text-ink pr-8">Edit Order #{{ eo.id }}</h2>
+            <p class="text-sm text-sub mt-1 mb-5">Correct shipping details or line items.</p>
+
+            @if (editOrderError()) {
+              <div class="mb-4 rounded-lg bg-red-50 text-red-700 text-sm px-3 py-2">{{ editOrderError() }}</div>
+            }
+
+            <form (ngSubmit)="submitEditOrder(eo)" class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-ink mb-1">Name</label>
+                <input [(ngModel)]="editOrderName" name="editOrderName" required class="w-full rounded-lg border border-line bg-cream px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-ink mb-1">Phone</label>
+                <input [(ngModel)]="editOrderPhone" name="editOrderPhone" required class="w-full rounded-lg border border-line bg-cream px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-ink mb-1">District</label>
+                <select [(ngModel)]="editOrderDistrictId" name="editOrderDistrictId" class="w-full rounded-lg border border-line bg-cream px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                  @for (d of districts(); track d.id) {
+                    <option [ngValue]="d.id">{{ d.name }}</option>
+                  }
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-ink mb-1">Address</label>
+                <textarea [(ngModel)]="editOrderAddress" name="editOrderAddress" rows="2" required class="w-full rounded-lg border border-line bg-cream px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-ink mb-2">Items</label>
+                <div class="space-y-2.5">
+                  @for (row of editOrderItems(); track row.id) {
+                    <div class="flex items-center gap-2 border border-line rounded-lg p-2.5" [class.opacity-40]="row.removed">
+                      <span class="flex-1 text-sm font-medium text-ink truncate">{{ row.name }}</span>
+                      <input
+                        type="number"
+                        min="1"
+                        [(ngModel)]="row.quantity"
+                        [name]="'editOrderQty' + row.id"
+                        [disabled]="row.removed"
+                        class="w-16 rounded-lg border border-line px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        [(ngModel)]="row.unit_price"
+                        [name]="'editOrderPrice' + row.id"
+                        [disabled]="row.removed"
+                        class="w-24 rounded-lg border border-line px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
+                      <button
+                        type="button"
+                        (click)="toggleRemoveOrderItem(row)"
+                        class="text-xs font-semibold hover:underline shrink-0"
+                        [class]="row.removed ? 'text-brand-600' : 'text-red-600'"
+                      >
+                        {{ row.removed ? 'Undo' : 'Remove' }}
+                      </button>
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <div class="bg-cream rounded-lg px-4 py-3 space-y-1">
+                <div class="flex justify-between text-sm">
+                  <span class="text-sub">Delivery charge</span>
+                  <span class="font-semibold text-ink">{{ editOrderDeliveryCharge() | currency:'BDT':'symbol':'1.0-0' }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-sub font-semibold">Total</span>
+                  <span class="font-serif font-bold text-brand-600">{{ editOrderTotal() | currency:'BDT':'symbol':'1.0-0' }}</span>
+                </div>
+              </div>
+
               <div class="flex gap-3 pt-2">
-                <button type="button" (click)="closeAddEmployee()" class="flex-1 border border-line text-ink font-medium rounded-lg py-2.5 transition hover:bg-cream">
+                <button type="button" (click)="closeEditOrder()" class="flex-1 border border-line text-ink font-medium rounded-lg py-2.5 transition hover:bg-cream">
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  [disabled]="savingNewEmployee()"
+                  [disabled]="savingOrderEdit()"
                   class="flex-1 bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white font-medium rounded-lg py-2.5 transition"
                 >
-                  {{ savingNewEmployee() ? 'Adding...' : 'Add Staff' }}
+                  {{ savingOrderEdit() ? 'Saving...' : 'Save changes' }}
                 </button>
               </div>
             </form>
@@ -524,6 +674,7 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
 export class AdminDashboard {
   auth = inject(AuthService);
   private orderService = inject(OrderService);
+  private districtService = inject(DistrictService);
   private employeeService = inject(EmployeeService);
   private http = inject(HttpClient);
   private route = inject(ActivatedRoute);
@@ -547,6 +698,16 @@ export class AdminDashboard {
   loadingOrders = signal(true);
   orderSearch = '';
   checkoutFilter = signal<'all' | 'guest' | 'account'>('all');
+
+  districts = signal<District[]>([]);
+  editingOrder = signal<Order | null>(null);
+  editOrderName = '';
+  editOrderPhone = '';
+  editOrderAddress = '';
+  editOrderDistrictId: number | null = null;
+  editOrderItems = signal<{ id: number; name: string; quantity: number; unit_price: number; removed: boolean }[]>([]);
+  editOrderError = signal('');
+  savingOrderEdit = signal(false);
   checkoutSegments: { value: 'all' | 'guest' | 'account'; label: string }[] = [
     { value: 'all', label: 'All' },
     { value: 'guest', label: 'Guest' },
@@ -604,6 +765,11 @@ export class AdminDashboard {
   newEmployeeEmail = '';
   newEmployeePassword = '';
   newEmployeeRole: 'employee' | 'admin' | 'superadmin' = 'employee';
+  roleOptions: { value: 'employee' | 'admin' | 'superadmin'; label: string }[] = [
+    { value: 'employee', label: 'Employee' },
+    { value: 'admin', label: 'Admin' },
+    { value: 'superadmin', label: 'Superadmin' },
+  ];
   newEmployeePermissions = signal<Permission[]>([]);
   addEmployeeError = signal('');
   savingNewEmployee = signal(false);
@@ -795,6 +961,83 @@ export class AdminDashboard {
     this.orderService.updateAdminStatus(order.id, status).subscribe(() => {
       this.orders.update((orders) => orders.map((o) => (o.id === order.id ? { ...o, status } : o)));
     });
+  }
+
+  openEditOrder(order: Order) {
+    if (this.districts().length === 0) {
+      this.districtService.list().subscribe((districts) => this.districts.set(districts));
+    }
+
+    this.editingOrder.set(order);
+    this.editOrderName = order.shipping_name;
+    this.editOrderPhone = order.shipping_phone;
+    this.editOrderAddress = order.shipping_address;
+    this.editOrderDistrictId = order.district_id;
+    this.editOrderItems.set(
+      order.items.map((item) => ({
+        id: item.id,
+        name: item.product?.name || item.product_name || 'Product removed',
+        quantity: item.quantity,
+        unit_price: Number(item.unit_price),
+        removed: false,
+      }))
+    );
+    this.editOrderError.set('');
+  }
+
+  closeEditOrder() {
+    this.editingOrder.set(null);
+  }
+
+  toggleRemoveOrderItem(row: { id: number; removed: boolean }) {
+    this.editOrderItems.update((rows) => rows.map((r) => (r.id === row.id ? { ...r, removed: !r.removed } : r)));
+  }
+
+  editOrderDeliveryCharge(): number {
+    const district = this.districts().find((d) => d.id === this.editOrderDistrictId);
+    if (district) return Number(district.delivery_charge);
+    return Number(this.editingOrder()?.delivery_charge ?? 0);
+  }
+
+  editOrderTotal(): number {
+    const subtotal = this.editOrderItems()
+      .filter((r) => !r.removed)
+      .reduce((sum, r) => sum + r.quantity * r.unit_price, 0);
+    return subtotal + this.editOrderDeliveryCharge();
+  }
+
+  submitEditOrder(order: Order) {
+    const activeRows = this.editOrderItems().filter((r) => !r.removed);
+    if (activeRows.length === 0) {
+      this.editOrderError.set('An order needs at least one item — remove the whole order instead of clearing every item.');
+      return;
+    }
+
+    this.editOrderError.set('');
+    this.savingOrderEdit.set(true);
+
+    this.orderService
+      .updateAdmin(order.id, {
+        shipping_name: this.editOrderName,
+        shipping_phone: this.editOrderPhone,
+        shipping_address: this.editOrderAddress,
+        district_id: this.editOrderDistrictId ?? undefined,
+        items: activeRows.map((r) => ({ id: r.id, quantity: r.quantity, unit_price: r.unit_price })),
+        remove_item_ids: this.editOrderItems()
+          .filter((r) => r.removed)
+          .map((r) => r.id),
+      })
+      .subscribe({
+        next: (updated) => {
+          this.orders.update((orders) => orders.map((o) => (o.id === updated.id ? updated : o)));
+          this.savingOrderEdit.set(false);
+          this.editingOrder.set(null);
+        },
+        error: (err) => {
+          this.savingOrderEdit.set(false);
+          this.editOrderError.set(err?.error?.message || 'Could not save changes.');
+        },
+      });
   }
 
   openAddEmployee() {

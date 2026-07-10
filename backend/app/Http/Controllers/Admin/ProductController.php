@@ -6,6 +6,8 @@ use App\Http\Controllers\Concerns\ManagesProductImages;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\Setting;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -27,7 +29,11 @@ class ProductController extends Controller
             $query->where('name', 'like', "%{$search}%");
         }
 
-        return $query->latest()->paginate(20);
+        $products = $query->latest()->paginate(20);
+
+        $this->markAutoBestSellers($products->getCollection());
+
+        return $products;
     }
 
     public function store(Request $request)
@@ -41,6 +47,7 @@ class ProductController extends Controller
             'quantity' => [$hasVariants ? 'nullable' : 'required', 'integer', 'min:0'],
             'category_id' => ['required', 'exists:categories,id'],
             'seller_id' => ['nullable', 'exists:users,id'],
+            'is_best_seller' => ['sometimes', 'boolean'],
             ...$this->imageValidationRules(),
             ...$this->variantValidationRules(),
         ]);
@@ -80,6 +87,7 @@ class ProductController extends Controller
             'quantity' => ['sometimes', 'required', 'integer', 'min:0'],
             'category_id' => ['sometimes', 'required', 'exists:categories,id'],
             'seller_id' => ['sometimes', 'required', 'exists:users,id'],
+            'is_best_seller' => ['sometimes', 'boolean'],
             ...$this->imageValidationRules(),
             ...$this->variantValidationRules(),
         ]);
@@ -110,6 +118,29 @@ class ProductController extends Controller
         $product->delete();
 
         return response()->json(['message' => 'Product deleted']);
+    }
+
+    /**
+     * When auto-detect is on, flags today's top-selling product(s) as best
+     * sellers alongside any manually-flagged ones. In-memory only — this
+     * never overwrites the stored is_best_seller column.
+     */
+    private function markAutoBestSellers(Collection $products): void
+    {
+        if (Setting::get('auto_best_seller_enabled', '0') !== '1') {
+            return;
+        }
+
+        $autoIds = Product::autoBestSellerIds();
+        if (empty($autoIds)) {
+            return;
+        }
+
+        $products->each(function (Product $p) use ($autoIds) {
+            if (in_array($p->id, $autoIds)) {
+                $p->is_best_seller = true;
+            }
+        });
     }
 
     private function variantValidationRules(): array

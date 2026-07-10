@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\ManagesProductImages;
 use App\Models\Product;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -22,15 +23,43 @@ class ProductController extends Controller
         }
 
         if ($categoryId = $request->query('category_id')) {
-            $query->where('category_id', $categoryId);
+            $ids = array_filter(array_map('intval', explode(',', $categoryId)));
+            if ($ids) {
+                $query->whereIn('category_id', $ids);
+            }
         }
 
-        return $query->latest()->paginate(12);
+        if ($request->filled('min_price')) {
+            $query->where('price', '>=', (float) $request->query('min_price'));
+        }
+
+        if ($request->filled('max_price')) {
+            $query->where('price', '<=', (float) $request->query('max_price'));
+        }
+
+        $products = $query->latest()->paginate(12);
+
+        if (Setting::get('auto_best_seller_enabled', '0') === '1') {
+            $autoIds = Product::autoBestSellerIds();
+            $products->getCollection()->each(function (Product $p) use ($autoIds) {
+                if (in_array($p->id, $autoIds)) {
+                    $p->is_best_seller = true;
+                }
+            });
+        }
+
+        return $products;
     }
 
     public function show(Product $product)
     {
-        return $product->load('seller:id,name', 'category:id,name', 'productImages', 'variants.productImages');
+        $product->load('seller:id,name', 'category:id,name', 'productImages', 'variants.productImages');
+
+        if (! $product->is_best_seller && Setting::get('auto_best_seller_enabled', '0') === '1') {
+            $product->is_best_seller = in_array($product->id, Product::autoBestSellerIds());
+        }
+
+        return $product;
     }
 
     public function mine(Request $request)

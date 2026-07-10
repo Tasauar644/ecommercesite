@@ -44,4 +44,17 @@ export class OrderService {
   updateAdminStatus(id: number, status: OrderStatus) {
     return this.http.patch<Order>(`${this.base}/admin/orders/${id}/status`, { status });
   }
+
+  updateAdmin(id: number, payload: UpdateOrderPayload) {
+    return this.http.patch<Order>(`${this.base}/admin/orders/${id}`, payload);
+  }
+}
+
+export interface UpdateOrderPayload {
+  shipping_name?: string;
+  shipping_phone?: string;
+  shipping_address?: string;
+  district_id?: number;
+  items?: { id: number; quantity: number; unit_price: number }[];
+  remove_item_ids?: number[];
 }

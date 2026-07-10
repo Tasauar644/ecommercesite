@@ -13,6 +13,27 @@ const MAX_BANNERS = 4;
   selector: 'app-admin-products',
   imports: [CurrencyPipe, FormsModule, RouterLink],
   template: `
+    <div class="bg-white border border-line rounded-2xl p-6 mb-6 flex items-center justify-between gap-4 flex-wrap">
+      <div>
+        <h2 class="font-serif font-semibold text-lg text-ink">Best Seller Badge</h2>
+        <p class="text-sm text-sub mt-1">
+          Auto-detect highlights whichever product sold the most units today with a glowing "Best Seller Today" badge — on top of any products you mark manually below.
+        </p>
+      </div>
+      <button
+        type="button"
+        (click)="toggleAutoBestSeller()"
+        [disabled]="savingBestSellerSettings()"
+        class="relative inline-flex h-6 w-11 items-center rounded-full transition disabled:opacity-50 shrink-0"
+        [class]="autoBestSellerEnabled() ? 'bg-brand-600' : 'bg-gray-300'"
+      >
+        <span
+          class="inline-block h-4 w-4 transform rounded-full bg-white transition"
+          [class]="autoBestSellerEnabled() ? 'translate-x-6' : 'translate-x-1'"
+        ></span>
+      </button>
+    </div>
+
     <div class="bg-white border border-line rounded-2xl p-6 mb-6">
       <h2 class="font-serif font-semibold text-lg text-ink">Homepage Banners</h2>
       <p class="text-sm text-sub mt-1 mb-4">Up to {{ maxBanners }} photos shown in the rotating banner on the storefront homepage.</p>
@@ -151,6 +172,9 @@ const MAX_BANNERS = 4;
                     }
                   </div>
                   <span class="font-semibold text-ink">{{ product.name }}</span>
+                  @if (product.is_best_seller) {
+                    <span class="text-[11px] font-bold bg-brand-600 text-white rounded-full px-2 py-0.5 shrink-0">🔥 Best seller</span>
+                  }
                 </td>
                 <td class="px-4 py-4">
                   <span class="block w-full text-xs font-semibold text-brand-700 bg-brand-100 rounded-full px-3 py-1.5">{{ product.category?.name || 'Uncategorized' }}</span>
@@ -188,10 +212,26 @@ export class AdminProducts {
   pendingCaption = '';
   addingBanner = signal(false);
 
+  autoBestSellerEnabled = signal(false);
+  savingBestSellerSettings = signal(false);
+
   constructor() {
     this.categoryService.list().subscribe((categories) => this.categories.set(categories));
     this.load();
     this.loadBanners();
+    this.productService.getBestSellerSettings().subscribe((res) => this.autoBestSellerEnabled.set(res.auto_enabled));
+  }
+
+  toggleAutoBestSeller() {
+    const next = !this.autoBestSellerEnabled();
+    this.savingBestSellerSettings.set(true);
+    this.productService.updateBestSellerSettings(next).subscribe({
+      next: (res) => {
+        this.autoBestSellerEnabled.set(res.auto_enabled);
+        this.savingBestSellerSettings.set(false);
+      },
+      error: () => this.savingBestSellerSettings.set(false),
+    });
   }
 
   private loadBanners() {

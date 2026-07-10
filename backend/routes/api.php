@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\BannerController as AdminBannerController;
+use App\Http\Controllers\Admin\BestSellerSettingController as AdminBestSellerSettingController;
 use App\Http\Controllers\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Admin\DistrictController as AdminDistrictController;
 use App\Http\Controllers\Admin\PaymentSettingController as AdminPaymentSettingController;
@@ -55,6 +56,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::middleware('permission:manage_orders')->group(function () {
             Route::get('/orders', [OrderController::class, 'adminOrders']);
             Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus']);
+            Route::patch('/orders/{order}', [OrderController::class, 'update']);
         });
 
         Route::middleware('permission:manage_categories')->group(function () {
@@ -68,6 +70,9 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
             Route::post('/products', [AdminProductController::class, 'store']);
             Route::post('/products/{product}', [AdminProductController::class, 'update']);
             Route::delete('/products/{product}', [AdminProductController::class, 'destroy']);
+
+            Route::get('/best-seller-settings', [AdminBestSellerSettingController::class, 'index']);
+            Route::post('/best-seller-settings', [AdminBestSellerSettingController::class, 'update']);
 
             Route::get('/banners', [AdminBannerController::class, 'index']);
             Route::post('/banners', [AdminBannerController::class, 'store']);
