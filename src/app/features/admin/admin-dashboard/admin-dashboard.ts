@@ -8,18 +8,20 @@ import { AuthService } from '../../../core/services/auth.service';
 import { DistrictService } from '../../../core/services/district.service';
 import { EmployeeService } from '../../../core/services/employee.service';
 import { OrderService } from '../../../core/services/order.service';
-import { ALL_PERMISSIONS, District, Order, OrderStatus, Paginated, Permission, Role, User } from '../../../core/models';
+import { ProductService } from '../../../core/services/product.service';
+import { ALL_PERMISSIONS, District, Order, OrderStatus, Paginated, Permission, Product, Role, User } from '../../../core/models';
 import { MyAccountModal } from '../../../shared/my-account-modal/my-account-modal';
 import { AdminCategories } from '../admin-categories/admin-categories';
 import { AdminCustomers } from '../admin-customers/admin-customers';
 import { AdminDelivery } from '../admin-delivery/admin-delivery';
 import { AdminProducts } from '../admin-products/admin-products';
+import { AdminReports } from '../admin-reports/admin-reports';
 
-type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'delivery';
+type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'delivery' | 'reports';
 
 @Component({
   selector: 'app-admin-dashboard',
-  imports: [CurrencyPipe, DatePipe, FormsModule, RouterLink, MyAccountModal, AdminProducts, AdminCategories, AdminCustomers, AdminDelivery],
+  imports: [CurrencyPipe, DatePipe, FormsModule, RouterLink, MyAccountModal, AdminProducts, AdminCategories, AdminCustomers, AdminDelivery, AdminReports],
   template: `
     <div class="flex h-full">
       <aside class="w-64 shrink-0 bg-ink text-white flex flex-col h-full">
@@ -574,7 +576,12 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
               </div>
               <div>
                 <label class="block text-sm font-medium text-ink mb-1">District</label>
-                <select [(ngModel)]="editOrderDistrictId" name="editOrderDistrictId" class="w-full rounded-lg border border-line bg-cream px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                <select
+                  [ngModel]="editOrderDistrictId"
+                  (ngModelChange)="onEditOrderDistrictChange($event)"
+                  name="editOrderDistrictId"
+                  class="w-full rounded-lg border border-line bg-cream px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                >
                   @for (d of districts(); track d.id) {
                     <option [ngValue]="d.id">{{ d.name }}</option>
                   }
@@ -618,15 +625,82 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
                       </button>
                     </div>
                   }
+
+                  @for (row of editNewItems(); track row.product_id; let i = $index) {
+                    <div class="flex items-center gap-2 border border-brand-200 bg-brand-50 rounded-lg p-2.5">
+                      <span class="flex-1 text-sm font-medium text-ink truncate">{{ row.name }} <span class="text-brand-600 font-normal">(new)</span></span>
+                      <input
+                        type="number"
+                        min="1"
+                        [(ngModel)]="row.quantity"
+                        [name]="'editNewQty' + i"
+                        class="w-16 rounded-lg border border-line px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        [(ngModel)]="row.unit_price"
+                        [name]="'editNewPrice' + i"
+                        class="w-24 rounded-lg border border-line px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
+                      <button type="button" (click)="removeNewItem(i)" class="text-xs font-semibold text-red-600 hover:underline shrink-0">
+                        Remove
+                      </button>
+                    </div>
+                  }
+                </div>
+
+                <div class="relative mt-2.5">
+                  <input
+                    type="text"
+                    [ngModel]="editNewItemSearch"
+                    (ngModelChange)="searchNewItemProducts($event)"
+                    (focus)="editNewItemDropdownOpen.set(true)"
+                    name="editNewItemSearch"
+                    placeholder="Search products to add..."
+                    class="w-full rounded-lg border border-line px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                  @if (editNewItemDropdownOpen() && editNewItemResults().length > 0) {
+                    <ul
+                      (mousedown)="$event.preventDefault()"
+                      class="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-line bg-white shadow-lg"
+                    >
+                      @for (p of editNewItemResults(); track p.id) {
+                        <li>
+                          <button type="button" (click)="addNewItem(p)" class="w-full text-left px-3 py-2 text-sm hover:bg-brand-50 flex items-center gap-2.5">
+                            <span class="h-9 w-9 rounded-lg bg-cream overflow-hidden shrink-0 flex items-center justify-center ring-1 ring-line">
+                              @if (p.image_url) {
+                                <img [src]="p.image_url" [alt]="p.name" class="h-full w-full object-cover" />
+                              } @else {
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-line" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3 12V4.5A2.25 2.25 0 0 1 5.25 2.25h13.5A2.25 2.25 0 0 1 21 4.5V12m-18 0v7.5A2.25 2.25 0 0 0 5.25 21.75h13.5A2.25 2.25 0 0 0 21 19.5V12m-18 0h18M8.25 8.25h.008v.008H8.25V8.25Z" />
+                                </svg>
+                              }
+                            </span>
+                            <span class="flex-1 min-w-0 truncate">{{ p.name }}</span>
+                            <span class="text-sub shrink-0">{{ p.price | currency:'BDT':'symbol':'1.0-0' }}</span>
+                          </button>
+                        </li>
+                      }
+                    </ul>
+                  }
                 </div>
               </div>
 
-              <div class="bg-cream rounded-lg px-4 py-3 space-y-1">
-                <div class="flex justify-between text-sm">
-                  <span class="text-sub">Delivery charge</span>
-                  <span class="font-semibold text-ink">{{ editOrderDeliveryCharge() | currency:'BDT':'symbol':'1.0-0' }}</span>
+              <div class="bg-cream rounded-lg px-4 py-3 space-y-2">
+                <div class="flex justify-between items-center text-sm gap-3">
+                  <span class="text-sub shrink-0">Delivery charge</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    [(ngModel)]="editOrderDeliveryCharge"
+                    name="editOrderDeliveryCharge"
+                    class="w-28 rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
                 </div>
-                <div class="flex justify-between text-sm">
+                <div class="flex justify-between text-sm pt-1 border-t border-line/70">
                   <span class="text-sub font-semibold">Total</span>
                   <span class="font-serif font-bold text-brand-600">{{ editOrderTotal() | currency:'BDT':'symbol':'1.0-0' }}</span>
                 </div>
@@ -664,6 +738,10 @@ type Tab = 'orders' | 'users' | 'products' | 'categories' | 'customers' | 'deliv
       @if (tab() === 'delivery' && canSee('delivery')) {
         <app-admin-delivery />
       }
+
+      @if (tab() === 'reports' && canSee('reports')) {
+        <app-admin-reports />
+      }
         </div>
       </div>
     </div>
@@ -675,6 +753,7 @@ export class AdminDashboard {
   auth = inject(AuthService);
   private orderService = inject(OrderService);
   private districtService = inject(DistrictService);
+  private productService = inject(ProductService);
   private employeeService = inject(EmployeeService);
   private http = inject(HttpClient);
   private route = inject(ActivatedRoute);
@@ -687,6 +766,7 @@ export class AdminDashboard {
     { id: 'categories', label: 'Categories' },
     { id: 'customers', label: 'Customers' },
     { id: 'delivery', label: 'Delivery' },
+    { id: 'reports', label: 'Reports' },
   ];
 
   visibleTabs = computed(() => this.allTabs.filter((t) => this.canSee(t.id)));
@@ -705,7 +785,12 @@ export class AdminDashboard {
   editOrderPhone = '';
   editOrderAddress = '';
   editOrderDistrictId: number | null = null;
+  editOrderDeliveryCharge = 0;
   editOrderItems = signal<{ id: number; name: string; quantity: number; unit_price: number; removed: boolean }[]>([]);
+  editNewItems = signal<{ product_id: number; name: string; quantity: number; unit_price: number }[]>([]);
+  editNewItemSearch = '';
+  editNewItemResults = signal<Product[]>([]);
+  editNewItemDropdownOpen = signal(false);
   editOrderError = signal('');
   savingOrderEdit = signal(false);
   checkoutSegments: { value: 'all' | 'guest' | 'account'; label: string }[] = [
@@ -815,6 +900,8 @@ export class AdminDashboard {
     if (tab === 'categories') return this.auth.hasPermission('manage_categories');
     if (tab === 'customers') return this.auth.hasPermission('manage_customers');
     if (tab === 'delivery') return this.auth.hasPermission('manage_delivery');
+    // Reports show revenue/financials — superadmin only, never permission-gated.
+    if (tab === 'reports') return this.auth.isSuperAdmin();
     return false;
   }
 
@@ -973,6 +1060,7 @@ export class AdminDashboard {
     this.editOrderPhone = order.shipping_phone;
     this.editOrderAddress = order.shipping_address;
     this.editOrderDistrictId = order.district_id;
+    this.editOrderDeliveryCharge = Number(order.delivery_charge);
     this.editOrderItems.set(
       order.items.map((item) => ({
         id: item.id,
@@ -982,6 +1070,10 @@ export class AdminDashboard {
         removed: false,
       }))
     );
+    this.editNewItems.set([]);
+    this.editNewItemSearch = '';
+    this.editNewItemResults.set([]);
+    this.editNewItemDropdownOpen.set(false);
     this.editOrderError.set('');
   }
 
@@ -993,22 +1085,49 @@ export class AdminDashboard {
     this.editOrderItems.update((rows) => rows.map((r) => (r.id === row.id ? { ...r, removed: !r.removed } : r)));
   }
 
-  editOrderDeliveryCharge(): number {
-    const district = this.districts().find((d) => d.id === this.editOrderDistrictId);
-    if (district) return Number(district.delivery_charge);
-    return Number(this.editingOrder()?.delivery_charge ?? 0);
+  // District change only sets the SUGGESTED charge for that zone — the admin
+  // can still type over it, and that manual value is what gets saved.
+  onEditOrderDistrictChange(districtId: number | null) {
+    this.editOrderDistrictId = districtId;
+    const district = this.districts().find((d) => d.id === districtId);
+    if (district) this.editOrderDeliveryCharge = Number(district.delivery_charge);
   }
 
   editOrderTotal(): number {
-    const subtotal = this.editOrderItems()
+    const existingSubtotal = this.editOrderItems()
       .filter((r) => !r.removed)
       .reduce((sum, r) => sum + r.quantity * r.unit_price, 0);
-    return subtotal + this.editOrderDeliveryCharge();
+    const newSubtotal = this.editNewItems().reduce((sum, r) => sum + r.quantity * r.unit_price, 0);
+    return existingSubtotal + newSubtotal + Number(this.editOrderDeliveryCharge || 0);
+  }
+
+  searchNewItemProducts(term: string) {
+    this.editNewItemSearch = term;
+    this.editNewItemDropdownOpen.set(true);
+    if (!term.trim()) {
+      this.editNewItemResults.set([]);
+      return;
+    }
+    this.productService.list(term).subscribe((res) => this.editNewItemResults.set(res.data));
+  }
+
+  addNewItem(product: Product) {
+    this.editNewItems.update((items) => [
+      ...items,
+      { product_id: product.id, name: product.name, quantity: 1, unit_price: Number(product.price) },
+    ]);
+    this.editNewItemSearch = '';
+    this.editNewItemResults.set([]);
+    this.editNewItemDropdownOpen.set(false);
+  }
+
+  removeNewItem(index: number) {
+    this.editNewItems.update((items) => items.filter((_, i) => i !== index));
   }
 
   submitEditOrder(order: Order) {
     const activeRows = this.editOrderItems().filter((r) => !r.removed);
-    if (activeRows.length === 0) {
+    if (activeRows.length === 0 && this.editNewItems().length === 0) {
       this.editOrderError.set('An order needs at least one item — remove the whole order instead of clearing every item.');
       return;
     }
@@ -1022,10 +1141,12 @@ export class AdminDashboard {
         shipping_phone: this.editOrderPhone,
         shipping_address: this.editOrderAddress,
         district_id: this.editOrderDistrictId ?? undefined,
+        delivery_charge: Number(this.editOrderDeliveryCharge || 0),
         items: activeRows.map((r) => ({ id: r.id, quantity: r.quantity, unit_price: r.unit_price })),
         remove_item_ids: this.editOrderItems()
           .filter((r) => r.removed)
           .map((r) => r.id),
+        new_items: this.editNewItems().map((r) => ({ product_id: r.product_id, quantity: r.quantity, unit_price: r.unit_price })),
       })
       .subscribe({
         next: (updated) => {

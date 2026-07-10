@@ -228,12 +228,17 @@ class OrderController extends Controller
             'shipping_phone' => ['sometimes', 'required', 'string', 'max:30'],
             'shipping_address' => ['sometimes', 'required', 'string', 'max:255'],
             'district_id' => ['sometimes', 'required', 'integer', 'exists:districts,id'],
+            'delivery_charge' => ['sometimes', 'numeric', 'min:0'],
             'items' => ['sometimes', 'array'],
             'items.*.id' => ['required_with:items', 'integer', 'exists:order_items,id'],
             'items.*.quantity' => ['required_with:items', 'integer', 'min:1'],
             'items.*.unit_price' => ['required_with:items', 'numeric', 'min:0'],
             'remove_item_ids' => ['sometimes', 'array'],
             'remove_item_ids.*' => ['integer', 'exists:order_items,id'],
+            'new_items' => ['sometimes', 'array'],
+            'new_items.*.product_id' => ['required_with:new_items', 'integer', 'exists:products,id'],
+            'new_items.*.quantity' => ['required_with:new_items', 'integer', 'min:1'],
+            'new_items.*.unit_price' => ['required_with:new_items', 'numeric', 'min:0'],
         ]);
 
         DB::transaction(function () use ($order, $data) {
@@ -247,6 +252,12 @@ class OrderController extends Controller
                 $district = District::findOrFail($data['district_id']);
                 $order->district_id = $district->id;
                 $order->delivery_charge = $district->delivery_charge;
+            }
+
+            // A manual delivery_charge always wins over the district-derived
+            // one — it's sent after the district block resolves above.
+            if (array_key_exists('delivery_charge', $data)) {
+                $order->delivery_charge = $data['delivery_charge'];
             }
 
             foreach ($data['remove_item_ids'] ?? [] as $itemId) {
@@ -272,6 +283,28 @@ class OrderController extends Controller
                 $item->quantity = $itemData['quantity'];
                 $item->unit_price = $itemData['unit_price'];
                 $item->save();
+            }
+
+            foreach ($data['new_items'] ?? [] as $newItem) {
+                $product = Product::lockForUpdate()->find($newItem['product_id']);
+                if (! $product) {
+                    continue;
+                }
+
+                if ($product->quantity < $newItem['quantity']) {
+                    throw ValidationException::withMessages(['new_items' => ["Not enough stock for \"{$product->name}\"."]]);
+                }
+
+                $product->decrement('quantity', $newItem['quantity']);
+
+                $order->items()->create([
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'product_image' => $product->image_url,
+                    'seller_id' => $product->seller_id,
+                    'quantity' => $newItem['quantity'],
+                    'unit_price' => $newItem['unit_price'],
+                ]);
             }
 
             $subtotal = $order->items()->get()->sum(fn (OrderItem $i) => $i->quantity * $i->unit_price);

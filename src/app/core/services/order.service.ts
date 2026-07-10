@@ -55,6 +55,8 @@ export interface UpdateOrderPayload {
   shipping_phone?: string;
   shipping_address?: string;
   district_id?: number;
+  delivery_charge?: number;
   items?: { id: number; quantity: number; unit_price: number }[];
   remove_item_ids?: number[];
+  new_items?: { product_id: number; quantity: number; unit_price: number }[];
 }

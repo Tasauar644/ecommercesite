@@ -29,9 +29,21 @@ class ProductController extends Controller
             $query->where('name', 'like', "%{$search}%");
         }
 
+        $autoEnabled = Setting::get('auto_best_seller_enabled', '0') === '1';
+        $autoIds = $autoEnabled ? Product::autoBestSellerIds() : [];
+
+        if ($request->boolean('best_seller_only')) {
+            $query->where(function ($q) use ($autoIds) {
+                $q->where('is_best_seller', true);
+                if (! empty($autoIds)) {
+                    $q->orWhereIn('id', $autoIds);
+                }
+            });
+        }
+
         $products = $query->latest()->paginate(20);
 
-        $this->markAutoBestSellers($products->getCollection());
+        $this->markAutoBestSellers($products->getCollection(), $autoIds);
 
         return $products;
     }
@@ -125,13 +137,8 @@ class ProductController extends Controller
      * sellers alongside any manually-flagged ones. In-memory only — this
      * never overwrites the stored is_best_seller column.
      */
-    private function markAutoBestSellers(Collection $products): void
+    private function markAutoBestSellers(Collection $products, array $autoIds): void
     {
-        if (Setting::get('auto_best_seller_enabled', '0') !== '1') {
-            return;
-        }
-
-        $autoIds = Product::autoBestSellerIds();
         if (empty($autoIds)) {
             return;
         }

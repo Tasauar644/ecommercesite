@@ -15,7 +15,7 @@ import { CartService } from '../../core/services/cart.service';
           <span class="font-serif font-semibold text-xl text-ink whitespace-nowrap">Dream N Decor</span>
         </a>
 
-        <form class="flex-1 max-w-md hidden sm:flex items-center gap-2.5 bg-cream border border-line rounded-full px-4 py-2.5" (submit)="onSearch($event)">
+        <form class="flex-1 max-w-md hidden sm:flex items-center gap-2.5 bg-cream border border-line rounded-full pl-4 pr-1.5 py-1.5" (submit)="onSearch($event)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-sub shrink-0"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M20 20L16 16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
           <input
             [(ngModel)]="searchTerm"
@@ -24,9 +24,15 @@ import { CartService } from '../../core/services/cart.service';
             placeholder="Search products..."
             class="w-full bg-transparent outline-none text-sm text-ink"
           />
+          <button type="submit" class="shrink-0 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-full px-4 py-1.5 transition">
+            Search
+          </button>
         </form>
 
         <nav class="ml-auto flex items-center gap-5 text-sm font-medium text-ink">
+          <button type="button" (click)="mobileSearchOpen.set(!mobileSearchOpen())" class="sm:hidden text-ink" aria-label="Search">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M20 20L16 16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </button>
           @if (auth.isCustomer()) {
             <a routerLink="/orders" routerLinkActive="text-brand-600" class="hover:text-brand-600">My Orders</a>
           } @else if (!auth.isLoggedIn()) {
@@ -58,6 +64,25 @@ import { CartService } from '../../core/services/cart.service';
           }
         </nav>
       </div>
+
+      @if (mobileSearchOpen()) {
+        <div class="sm:hidden w-[92%] max-w-[2200px] mx-auto pb-3">
+          <form class="flex items-center gap-2.5 bg-cream border border-line rounded-full pl-4 pr-1.5 py-1.5" (submit)="onMobileSearch($event)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-sub shrink-0"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.8"/><path d="M20 20L16 16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <input
+              [(ngModel)]="searchTerm"
+              name="mobileSearch"
+              type="search"
+              placeholder="Search products..."
+              autofocus
+              class="w-full bg-transparent outline-none text-sm text-ink"
+            />
+            <button type="submit" class="shrink-0 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-full px-4 py-1.5 transition">
+              Search
+            </button>
+          </form>
+        </div>
+      }
     </header>
   `,
 })
@@ -67,10 +92,16 @@ export class Navbar {
   private router = inject(Router);
 
   searchTerm = signal('');
+  mobileSearchOpen = signal(false);
 
   onSearch(event: Event) {
     event.preventDefault();
     this.router.navigate(['/products'], { queryParams: { search: this.searchTerm() || null } });
+  }
+
+  onMobileSearch(event: Event) {
+    this.onSearch(event);
+    this.mobileSearchOpen.set(false);
   }
 
   logout() {

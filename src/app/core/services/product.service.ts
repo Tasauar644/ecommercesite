@@ -26,10 +26,11 @@ export class ProductService {
     return this.http.get<Product>(`${this.base}/${id}`);
   }
 
-  adminList(categoryId?: number, search?: string) {
+  adminList(categoryId?: number, search?: string, bestSellerOnly?: boolean) {
     const params: Record<string, string> = {};
     if (categoryId) params['category_id'] = String(categoryId);
     if (search) params['search'] = search;
+    if (bestSellerOnly) params['best_seller_only'] = '1';
     return this.http.get<Paginated<Product>>(this.adminBase, { params });
   }
 

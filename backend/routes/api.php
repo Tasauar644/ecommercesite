@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Admin\DistrictController as AdminDistrictController;
 use App\Http\Controllers\Admin\PaymentSettingController as AdminPaymentSettingController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
+use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BannerController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentSettingController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\SmartSearchController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -32,6 +34,8 @@ Route::post('/guest-orders', [OrderController::class, 'guestStore']);
 Route::post('/track-order', [OrderController::class, 'track'])->middleware('throttle:10,1');
 // Throttled — each message costs a real API call, so this needs an abuse/cost guard.
 Route::post('/chat', [ChatController::class, 'send'])->middleware('throttle:20,1');
+// Throttled — same reason: each search can cost a Gemini call.
+Route::post('/smart-search', [SmartSearchController::class, 'search'])->middleware('throttle:20,1');
 
 Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -102,6 +106,10 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
 
     // Superadmin only: manage other admin/employee accounts and their permissions.
     Route::middleware('role:superadmin')->prefix('admin')->group(function () {
+        Route::get('/reports', [AdminReportController::class, 'index']);
+        Route::get('/reports/categories', [AdminReportController::class, 'categories']);
+        Route::get('/reports/products', [AdminReportController::class, 'products']);
+
         Route::get('/employees', [EmployeeController::class, 'index']);
         Route::post('/employees', [EmployeeController::class, 'store']);
         Route::patch('/employees/{employee}', [EmployeeController::class, 'update']);

@@ -128,7 +128,15 @@ const MAX_BANNERS = 4;
               <option [ngValue]="category.id">{{ category.name }}</option>
             }
           </select>
-          @if (search || categoryId) {
+          <button
+            type="button"
+            (click)="toggleBestSellerFilter()"
+            class="text-sm font-medium rounded-full px-3.5 py-1.5 transition inline-flex items-center gap-1.5"
+            [class]="bestSellerOnly() ? 'bg-brand-600 text-white' : 'border border-line text-sub hover:bg-cream'"
+          >
+            🔥 Best sellers only
+          </button>
+          @if (search || categoryId || bestSellerOnly()) {
             <button
               type="button"
               (click)="resetFilters()"
@@ -151,8 +159,9 @@ const MAX_BANNERS = 4;
       } @else if (products().length === 0) {
         <p class="text-sub text-sm p-6">No products found.</p>
       } @else {
+        <div class="max-h-[600px] overflow-y-auto">
         <table class="w-full text-sm">
-          <thead class="bg-cream text-left">
+          <thead class="bg-cream text-left sticky top-0 z-10">
             <tr>
               <th class="px-4 py-3 text-[11px] font-bold text-sub uppercase tracking-wide">Product</th>
               <th class="px-4 py-3 text-[11px] font-bold text-sub uppercase tracking-wide">Category</th>
@@ -190,6 +199,7 @@ const MAX_BANNERS = 4;
             }
           </tbody>
         </table>
+        </div>
       }
     </div>
   `,
@@ -204,6 +214,7 @@ export class AdminProducts {
   loading = signal(true);
   categoryId: number | null = null;
   search = '';
+  bestSellerOnly = signal(false);
 
   banners = signal<Banner[]>([]);
   bannerError = signal('');
@@ -301,12 +312,18 @@ export class AdminProducts {
   resetFilters() {
     this.search = '';
     this.categoryId = null;
+    this.bestSellerOnly.set(false);
+    this.load();
+  }
+
+  toggleBestSellerFilter() {
+    this.bestSellerOnly.update((v) => !v);
     this.load();
   }
 
   load() {
     this.loading.set(true);
-    this.productService.adminList(this.categoryId ?? undefined, this.search || undefined).subscribe({
+    this.productService.adminList(this.categoryId ?? undefined, this.search || undefined, this.bestSellerOnly()).subscribe({
       next: (res) => {
         this.products.set(res.data);
         this.loading.set(false);
